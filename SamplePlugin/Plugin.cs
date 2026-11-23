@@ -1,40 +1,60 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game.Command;
+using Dalamud.Game.Config;
+using System;
 using Dalamud.IoC;
 using Dalamud.Plugin;
-using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using SamplePlugin.Windows;
+using SamplePlugin.Audio;
+using SamplePlugin.Rules;
+using SamplePlugin.State;
 
 namespace SamplePlugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
-    [PluginService] internal static IClientState ClientState { get; private set; } = null!;
-    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
+    [PluginService] internal static IObjectTable ObjectTable { get; private set; } = null!;
+    [PluginService] internal static ITargetManager TargetManager { get; private set; } = null!;
+    [PluginService] internal static IGameConfig GameConfig { get; private set; } = null!;
 
-    private const string CommandName = "/pmycommand";
+    private const string CommandName = "/bgmcontrol";
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("SamplePlugin");
+    public readonly WindowSystem WindowSystem = new("BgmController");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
+    private StateMonitor StateMonitor { get; init; }
+    private RuleEngine RuleEngine { get; init; }
+    private BgmVolumeController VolumeController { get; init; }
+
+    private DateTime lastUpdate;
+    private DateTime lastStateUpdate;
+    private bool gameConfigReadWarningLogged;
+    public BgmStateSnapshot? LastState { get; private set; }
+    public RuleDecision LastDecision => RuleEngine.LastDecision;
+    public float CurrentBgmVolume => VolumeController.CurrentVolume;
 
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-
-        // You might normally want to embed resources and load them from the manifest stream
-        var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
-
         ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this, goatImagePath);
+        MainWindow = new MainWindow(this);
+        StateMonitor = new StateMonitor(Condition, ObjectTable, TargetManager);
+        RuleEngine = new RuleEngine(Configuration);
+        VolumeController = new BgmVolumeController(Log);
+        if (!VolumeController.Initialize(GameConfig))
+        {
+            Log.Warning("Could not read the user's BGM volume. BGM control will remain inactive until it is available.");
+        }
+        lastUpdate = DateTime.UtcNow;
+        lastStateUpdate = DateTime.UtcNow;
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
@@ -54,6 +74,8 @@ public sealed class Plugin : IDalamudPlugin
         // Adds another button doing the same but for the main ui of the plugin
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
 
+        Framework.Update += OnFrameworkUpdate;
+
         // Add a simple message to the log with level set to information
         // Use /xllog to open the log window in-game
         // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
@@ -66,6 +88,9 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
+        Framework.Update -= OnFrameworkUpdate;
+
+        VolumeController.Restore();
         
         WindowSystem.RemoveAllWindows();
 
@@ -77,8 +102,64 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        // In response to the slash command, toggle the display status of our main ui
         MainWindow.Toggle();
+    }
+
+    private void OnFrameworkUpdate(IFramework framework)
+    {
+        var now = DateTime.UtcNow;
+        var elapsed = now - lastUpdate;
+        lastUpdate = now;
+
+        if (Configuration.Enabled)
+        {
+            if (!GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint configuredVolume))
+            {
+                if (!gameConfigReadWarningLogged)
+                {
+                    Log.Warning("Could not read the user's BGM volume. Releasing BGM control.");
+                    gameConfigReadWarningLogged = true;
+                }
+
+                VolumeController.Release(Configuration.FadeDurationSeconds);
+                VolumeController.Update(elapsed);
+                return;
+            }
+
+            gameConfigReadWarningLogged = false;
+            VolumeController.UpdateBaseline(configuredVolume / 100f);
+
+            if (now - lastStateUpdate >=
+                TimeSpan.FromSeconds(Math.Max(0.05f, Configuration.UpdateIntervalSeconds)))
+            {
+                lastStateUpdate = now;
+                LastState = StateMonitor.Capture(now);
+                var decision = RuleEngine.Evaluate(
+                    LastState,
+                    now);
+                VolumeController.ActiveRule = decision.RuleName;
+                VolumeController.SetTarget(
+                    decision.TargetVolume,
+                    Configuration.FadeDurationSeconds);
+            }
+        }
+        else
+        {
+            if (GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint configuredVolume))
+            {
+                gameConfigReadWarningLogged = false;
+                VolumeController.UpdateBaseline(configuredVolume / 100f);
+            }
+            else if (!gameConfigReadWarningLogged)
+            {
+                Log.Warning("Could not read the user's BGM volume. Releasing BGM control.");
+                gameConfigReadWarningLogged = true;
+            }
+
+            VolumeController.Release(Configuration.FadeDurationSeconds);
+        }
+
+        VolumeController.Update(elapsed);
     }
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();
