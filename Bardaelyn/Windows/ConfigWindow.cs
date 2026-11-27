@@ -52,6 +52,13 @@ public class ConfigWindow : Window, IDisposable
             configuration.DefaultVolume = defaultVolume / 100f;
             configuration.Save();
         }
+        var exactFade = configuration.ExactFadeDuration;
+        if (ImGui.Checkbox("Fade over the specified duration", ref exactFade))
+        {
+            configuration.ExactFadeDuration = exactFade;
+            configuration.Save();
+        }
+        Help("Off: fade time describes a full-scale volume change. On: each new target takes the specified time from the current volume; changing the target restarts the fade.");
 
         if (ImGui.Button("Configure Eorzea time periods"))
         {
@@ -93,6 +100,13 @@ public class ConfigWindow : Window, IDisposable
         {
             var rule = configuration.Rules[position];
 
+            if (!string.IsNullOrWhiteSpace(rule.Group) &&
+                (position == 0 || !string.Equals(configuration.Rules[position - 1].Group, rule.Group, StringComparison.Ordinal)))
+            {
+                ImGui.Spacing();
+                ImGui.TextWrapped($"Group: {rule.Group}");
+                ImGui.Separator();
+            }
             if (!ruleIds.ContainsKey(rule))
             {
                 ruleIds.Add(rule, nextRuleId++);
@@ -131,6 +145,17 @@ public class ConfigWindow : Window, IDisposable
             {
                 ImGui.SameLine();
             }
+            if (ImGui.Button("Duplicate"))
+            {
+                var copy = SettingsProfile.CopyRule(rule);
+                copy.Name = rule.Name.Length > 57 ? rule.Name[..57] + " copy" : rule.Name + " copy";
+                configuration.Rules.Insert(position + 1, copy);
+                configuration.Save();
+                EndRulePanel(panelStart, panelWidth);
+                ImGui.PopID();
+                break;
+            }
+            ImGui.SameLine();
             if (ImGui.Button("Remove"))
             {
                 pendingRemoval = rule;
@@ -154,7 +179,11 @@ public class ConfigWindow : Window, IDisposable
             var covering = RuleConflictAnalyzer.FindCoveringRule(configuration.Rules, position);
             if (covering is not null)
             {
-                ImGui.TextWrapped($"Priority warning: \"{covering.Name}\" also matches whenever this rule matches. Delays can affect which rule wins.");
+                ImGui.TextWrapped($"Priority warning: \"{covering.Name}\" is higher and matches whenever this rule matches, so it may prevent this rule from winning. Delays can change the outcome.");
+            }
+            else if (expanded && RuleConflictAnalyzer.FindOverlappingRule(configuration.Rules, position) is { } overlap)
+            {
+                ImGui.TextWrapped($"Possible overlap: \"{overlap.Name}\" is higher and may win when both rules match. Delays can change the outcome.");
             }
             if (ReferenceEquals(pendingRemoval, rule))
             {
@@ -210,6 +239,8 @@ public class ConfigWindow : Window, IDisposable
             return "Status: Active (last evaluation)";
         if (decision.ActiveRules.Contains(rule) && decision.SelectedRule is { } winner)
             return $"Status: Overridden by \"{winner.Name}\" (last evaluation)";
+        if (decision.ActivationRemainingSeconds.TryGetValue(rule, out var remaining))
+            return $"Status: Waiting {remaining:0.0}s for activation (last evaluation)";
         if (RuleEngine.Matches(rule, state, configuration.TimePeriods))
             return "Status: Matching; awaiting evaluation or activation delay";
         return "Status: Not matching (last sampled state)";
@@ -291,6 +322,13 @@ public class ConfigWindow : Window, IDisposable
             rule.Name = name;
             configuration.Save();
         }
+        var group = rule.Group;
+        if (ImGui.InputText("Group label (optional)", ref group, 64, ImGuiInputTextFlags.EnterReturnsTrue))
+        {
+            rule.Group = group;
+            configuration.Save();
+        }
+        Help("Labels group adjacent rules visually only. Rule order still determines priority.");
 
         ImGui.Separator();
         ImGui.TextUnformatted("Conditions");
@@ -497,7 +535,7 @@ public class ConfigWindow : Window, IDisposable
         ImGui.PopID();
     }
 
-    private static string ConditionLabel(RuleCondition condition) => condition switch
+    internal static string ConditionLabel(RuleCondition condition) => condition switch
     {
         RuleCondition.Mounted => "Mounted",
         RuleCondition.Moving => "Moving",
@@ -544,6 +582,30 @@ public class ConfigWindow : Window, IDisposable
         {
             return changed;
         }
+        if (showEnable)
+        {
+            var useFade = cycle.UseDefaultCycleFade;
+            if (ImGui.Checkbox("Fade default cycle transitions when no rule is active", ref useFade))
+            {
+                cycle.UseDefaultCycleFade = useFade;
+                changed = true;
+            }
+            if (useFade)
+            {
+                var fade = cycle.DefaultCycleFadeSeconds;
+                if (Number("Default cycle fade (seconds)", ref fade, 0f, 60f, "%.1f"))
+                {
+                    cycle.DefaultCycleFadeSeconds = fade;
+                    changed = true;
+                }
+            }
+        }
+        var quietRange = cycle.RandomDurations ? $"{cycle.QuietMinSeconds:0.#}-{cycle.QuietMaxSeconds:0.#}s" : $"{cycle.QuietMinSeconds:0.#}s";
+        var musicDescription = cycle.UseQuietProbability
+            ? $"{cycle.QuietChancePercent:0.#}% quiet chance after {cycle.MinimumMusicSeconds:0.#}s, then every {cycle.AttemptIntervalSeconds:0.#}s"
+            : $"music for {(cycle.RandomDurations ? $"{cycle.MusicMinSeconds:0.#}-{cycle.MusicMaxSeconds:0.#}s" : $"{cycle.MusicMinSeconds:0.#}s")}";
+        ImGui.TextWrapped($"Cycle: quiet for {quietRange} at {cycle.QuietVolume * 100f:0.#}% of active volume, then {musicDescription}.");
+        Help("The cycle starts quiet. Probability attempts use detected music time; a natural gap may start quiet sooner when enabled.");
 
         var random = cycle.RandomDurations;
         if (ImGui.Checkbox("Randomize durations", ref random))
@@ -562,6 +624,12 @@ public class ConfigWindow : Window, IDisposable
         }
         if (probabilityMode)
         {
+            var minimumMusic = cycle.MinimumMusicSeconds;
+            if (Number("Minimum music before first attempt (seconds)", ref minimumMusic, 0f, 3600f, "%.1f"))
+            {
+                cycle.MinimumMusicSeconds = minimumMusic;
+                changed = true;
+            }
             var chance = cycle.QuietChancePercent;
             if (Number("Quiet event chance (%)", ref chance, 0f, 100f, "%.1f"))
             {
@@ -575,7 +643,7 @@ public class ConfigWindow : Window, IDisposable
                 changed = true;
             }
             ImGui.TextUnformatted("Probability attempts");
-            Help("The first attempt occurs when music begins; later attempts use detected music time.");
+            Help("The first attempt occurs after the minimum detected music time (immediately at zero); later attempts use detected music time. Natural gaps can start quiet before the minimum expires.");
         }
         else
         {
