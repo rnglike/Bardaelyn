@@ -342,42 +342,18 @@ public class ConfigWindow : Window, IDisposable
             ImGui.EndCombo();
         }
 
-        ImGui.TextWrapped("Include conditions to match; excluded conditions must always be absent.");
-        foreach (var condition in Enum.GetValues<RuleCondition>())
+        ImGui.TextWrapped("Add conditions to include or exclude. Excluded conditions must always be absent.");
+        if (ImGui.BeginTable("conditions", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingStretchSame))
         {
-            ImGui.PushID(condition.ToString());
-            var included = rule.Conditions.Contains(condition);
-            if (ImGui.Checkbox("Include", ref included))
-            {
-                if (included)
-                {
-                    rule.ExcludedConditions.Remove(condition);
-                    rule.Conditions.Add(condition);
-                }
-                else
-                {
-                    rule.Conditions.Remove(condition);
-                }
-                configuration.Save();
-            }
-            ImGui.SameLine();
-            var excluded = rule.ExcludedConditions.Contains(condition);
-            if (ImGui.Checkbox("Exclude", ref excluded))
-            {
-                if (excluded)
-                {
-                    rule.Conditions.Remove(condition);
-                    rule.ExcludedConditions.Add(condition);
-                }
-                else
-                {
-                    rule.ExcludedConditions.Remove(condition);
-                }
-                configuration.Save();
-            }
-            ImGui.SameLine();
-            ImGui.TextUnformatted(ConditionLabel(condition));
-            ImGui.PopID();
+            ImGui.TableSetupColumn("Include");
+            ImGui.TableSetupColumn("Exclude");
+            ImGui.TableHeadersRow();
+            ImGui.TableNextRow();
+            ImGui.TableNextColumn();
+            DrawConditionList("include", rule.Conditions, rule.ExcludedConditions);
+            ImGui.TableNextColumn();
+            DrawConditionList("exclude", rule.ExcludedConditions, rule.Conditions);
+            ImGui.EndTable();
         }
 
         if (rule.Conditions.Contains(RuleCondition.LowHp) || rule.ExcludedConditions.Contains(RuleCondition.LowHp))
@@ -415,6 +391,39 @@ public class ConfigWindow : Window, IDisposable
             ImGui.PopID();
         }
 
+    }
+
+    private void DrawConditionList(string id, List<RuleCondition> selected, List<RuleCondition> opposite)
+    {
+        ImGui.PushID(id);
+        ImGui.SetNextItemWidth(-1f);
+        if (ImGui.BeginCombo("##add", "Add condition"))
+        {
+            foreach (var condition in Enum.GetValues<RuleCondition>())
+            {
+                if (!selected.Contains(condition) && ImGui.Selectable(ConditionLabel(condition)))
+                {
+                    opposite.Remove(condition);
+                    selected.Add(condition);
+                    configuration.Save();
+                }
+            }
+            ImGui.EndCombo();
+        }
+
+        foreach (var condition in selected.ToArray())
+        {
+            ImGui.PushID(condition.ToString());
+            if (ImGui.Button("Remove"))
+            {
+                selected.Remove(condition);
+                configuration.Save();
+            }
+            ImGui.SameLine();
+            ImGui.TextUnformatted(ConditionLabel(condition));
+            ImGui.PopID();
+        }
+        ImGui.PopID();
     }
 
     private static string ConditionLabel(RuleCondition condition) => condition switch
