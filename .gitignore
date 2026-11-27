@@ -2,3 +2,5 @@
 obj/
 bin/
 *.user
+/README.md
+/README.local.md
