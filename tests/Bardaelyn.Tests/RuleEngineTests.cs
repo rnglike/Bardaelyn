@@ -96,7 +96,7 @@ public sealed class RuleEngineTests
     }
 
     [Fact]
-    public void HighestPriorityMatchingRuleWins()
+    public void FirstMatchingRuleWinsRegardlessOfOldPriority()
     {
         var engine = CreateEngine(new RuleSettings
         {
@@ -109,8 +109,8 @@ public sealed class RuleEngineTests
 
         var result = engine.Evaluate(State(isMounted: true), Start);
 
-        Assert.Equal("High priority", result.RuleName);
-        Assert.Equal(0.8f, result.TargetVolume);
+        Assert.Equal("Low priority", result.RuleName);
+        Assert.Equal(0.1f, result.TargetVolume);
     }
 
     [Fact]
@@ -137,15 +137,11 @@ public sealed class RuleEngineTests
     }
 
     [Fact]
-    public void LowHpRuleCompetesByPriority()
+    public void LowHpConditionUsesRuleThreshold()
     {
         var engine = CreateEngine(new RuleSettings
         {
-            LowHpRuleEnabled = true,
-            LowHpThresholdPercent = 30f,
-            LowHpVolume = 1f,
-            LowHpPriority = 100,
-            Rules = [Rule("Mounted", RuleCondition.Mounted, priority: 50, targetVolume: 0.1f)]
+            Rules = [new BgmRule { Name = "Low HP", Conditions = [RuleCondition.LowHp], LowHpThresholdPercent = 30f, TargetVolume = 1f }]
         });
 
         var result = engine.Evaluate(State(isMounted: true, hpPercent: 20f), Start);
@@ -155,14 +151,12 @@ public sealed class RuleEngineTests
     }
 
     [Fact]
-    public void LowHpDoesNotOverrideHigherPriorityRule()
+    public void LowHpConditionDoesNotOverrideEarlierRule()
     {
         var engine = CreateEngine(new RuleSettings
         {
-            LowHpRuleEnabled = true,
-            LowHpThresholdPercent = 30f,
-            LowHpPriority = 100,
-            Rules = [Rule("Critical state", RuleCondition.Mounted, priority: 101, targetVolume: 0.15f)]
+            Rules = [Rule("Critical state", RuleCondition.Mounted, priority: 101, targetVolume: 0.15f),
+                new BgmRule { Name = "Low HP", Conditions = [RuleCondition.LowHp], LowHpThresholdPercent = 30f }]
         });
 
         var result = engine.Evaluate(State(isMounted: true, hpPercent: 20f), Start);
@@ -205,7 +199,6 @@ public sealed class RuleEngineTests
             FadeDurationSeconds = float.PositiveInfinity,
             UpdateIntervalSeconds = -10f,
             LowHpThresholdPercent = 120f,
-            LowHpVolume = -1f,
             Rules =
             [
                 new BgmRule
@@ -225,7 +218,6 @@ public sealed class RuleEngineTests
         Assert.Equal(2f, configuration.FadeDurationSeconds);
         Assert.Equal(0.05f, configuration.UpdateIntervalSeconds);
         Assert.Equal(100f, configuration.LowHpThresholdPercent);
-        Assert.Equal(0f, configuration.LowHpVolume);
         Assert.Equal("Rule 1", configuration.Rules[0].Name);
         Assert.Equal(0.5f, configuration.Rules[0].TargetVolume);
         Assert.Equal(0f, configuration.Rules[0].ActivateAfterSeconds);

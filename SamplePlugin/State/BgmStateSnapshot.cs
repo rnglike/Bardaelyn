@@ -12,6 +12,9 @@ public sealed class BgmStateSnapshot
     public bool IsInDuty { get; init; }
     public bool IsInCutscene { get; init; }
     public bool HasTarget { get; init; }
+    public bool IsSwimming { get; init; }
+    public bool IsUnderwater { get; init; }
+    public int? EorzeaMinute { get; init; }
     public float HpPercent { get; init; }
     public float IdleForSeconds { get; init; }
     public Vector3 Position { get; init; }

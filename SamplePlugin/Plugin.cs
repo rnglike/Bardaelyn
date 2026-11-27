@@ -30,13 +30,17 @@ public sealed class Plugin : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("BgmController");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
+    private TimePeriodsWindow TimePeriodsWindow { get; init; }
     private StateMonitor StateMonitor { get; init; }
-    private RuleEngine RuleEngine { get; init; }
+    private RuleEngine RuleEngine { get; set; }
+    private SilenceCycleEngine SilenceCycleEngine { get; set; } = new();
+    private readonly FadeSelector fadeSelector = new();
     private BgmVolumeController VolumeController { get; init; }
 
     private DateTime lastUpdate;
     private DateTime lastStateUpdate;
     private bool gameConfigReadWarningLogged;
+    private bool musicBusWarningLogged;
     public BgmStateSnapshot? LastState { get; private set; }
     public RuleDecision LastDecision => RuleEngine.LastDecision;
     public float CurrentBgmVolume => VolumeController.CurrentVolume;
@@ -44,6 +48,8 @@ public sealed class Plugin : IDalamudPlugin
     public string ActiveRuleName => Configuration.Enabled
         ? LastDecision.RuleName
         : "Disabled";
+    public string CycleStatus { get; private set; } = "Off";
+    public int? MusicSoundCount { get; private set; }
 
     public Plugin()
     {
@@ -52,6 +58,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration.Save();
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
+        TimePeriodsWindow = new TimePeriodsWindow(Configuration);
         StateMonitor = new StateMonitor(Condition, ObjectTable, TargetManager);
         RuleEngine = new RuleEngine(() => Configuration.GetRuleSettings());
         VolumeController = new BgmVolumeController(Log);
@@ -64,6 +71,7 @@ public sealed class Plugin : IDalamudPlugin
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
+        WindowSystem.AddWindow(TimePeriodsWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -102,6 +110,7 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
+        TimePeriodsWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
@@ -127,7 +136,9 @@ public sealed class Plugin : IDalamudPlugin
                     gameConfigReadWarningLogged = true;
                 }
 
-                VolumeController.Release(Configuration.FadeDurationSeconds);
+                VolumeController.Release(ReleaseFade());
+                SilenceCycleEngine.Suspend();
+                CycleStatus = "Paused (BGM setting unavailable)";
                 VolumeController.Update(elapsed);
                 return;
             }
@@ -144,13 +155,39 @@ public sealed class Plugin : IDalamudPlugin
                     LastState,
                     now);
                 VolumeController.ActiveRule = decision.RuleName;
+                if (!LastState.HasPlayer)
+                {
+                    SilenceCycleEngine.Suspend();
+                    CycleStatus = "Paused (player unavailable)";
+                    VolumeController.Release(ReleaseFade());
+                    VolumeController.Update(elapsed);
+                    return;
+                }
+
+                var musicCount = MusicBusReader.ReadCount();
+                MusicSoundCount = musicCount;
+                if (musicCount is null && !musicBusWarningLogged)
+                {
+                    Log.Warning("Music bus detection is unavailable; quiet cycles will use elapsed-time fallback.");
+                    musicBusWarningLogged = true;
+                }
+                else if (musicCount is not null)
+                {
+                    musicBusWarningLogged = false;
+                }
+                var cycleDecision = SilenceCycleEngine.Evaluate(
+                    decision, Configuration.GlobalCycle, now, musicCount, Configuration.MusicStopDelaySeconds);
+                CycleStatus = cycleDecision.Status;
                 VolumeController.SetTarget(
-                    decision.TargetVolume,
-                    Configuration.FadeDurationSeconds);
+                    cycleDecision.TargetVolume,
+                    fadeSelector.Select(decision.SelectedRule, cycleDecision.TargetVolume,
+                        Configuration.FadeInSeconds!.Value, Configuration.FadeOutSeconds!.Value));
             }
         }
         else
         {
+            SilenceCycleEngine.Suspend();
+            CycleStatus = "Paused (disabled)";
             if (GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint configuredVolume))
             {
                 gameConfigReadWarningLogged = false;
@@ -162,7 +199,7 @@ public sealed class Plugin : IDalamudPlugin
                 gameConfigReadWarningLogged = true;
             }
 
-            VolumeController.Release(Configuration.FadeDurationSeconds);
+            VolumeController.Release(ReleaseFade());
         }
 
         VolumeController.Update(elapsed);
@@ -170,4 +207,17 @@ public sealed class Plugin : IDalamudPlugin
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();
     public void ToggleMainUi() => MainWindow.Toggle();
+    public void ToggleTimePeriodsUi() => TimePeriodsWindow.Toggle();
+
+    private float ReleaseFade() => fadeSelector.Release(Configuration.FadeInSeconds!.Value, Configuration.FadeOutSeconds!.Value);
+
+    public void SwitchProfile(string name)
+    {
+        Configuration.SwitchProfile(name);
+        Configuration.Save();
+        RuleEngine = new RuleEngine(() => Configuration.GetRuleSettings());
+        SilenceCycleEngine = new SilenceCycleEngine();
+        lastStateUpdate = DateTime.MinValue;
+        CycleStatus = "Waiting for state sample";
+    }
 }

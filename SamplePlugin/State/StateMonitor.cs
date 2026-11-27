@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
+using SamplePlugin.Rules;
 
 namespace SamplePlugin.State;
 
@@ -58,6 +59,9 @@ public sealed class StateMonitor
             IsInDuty = isInDuty,
             IsInCutscene = isInCutscene,
             HasTarget = targetManager.Target != null,
+            IsSwimming = player != null && condition[ConditionFlag.Swimming],
+            IsUnderwater = player != null && condition[ConditionFlag.Diving],
+            EorzeaMinute = player != null ? EorzeaPeriods.MinuteAt(now) : null,
             HpPercent = hpPercent,
             IdleForSeconds = idleForSeconds,
             Position = position

@@ -14,12 +14,18 @@ public sealed class BgmVolumeController
     private float fadeDurationSeconds = 2f;
     private bool isControlling;
     private bool isReleasing;
-    private readonly IPluginLog log;
+    private readonly IPluginLog? log;
+    private readonly Func<float, bool>? applyVolume;
     private bool soundManagerWarningLogged;
 
     public BgmVolumeController(IPluginLog log)
     {
         this.log = log;
+    }
+
+    internal BgmVolumeController(Func<float, bool> applyVolume)
+    {
+        this.applyVolume = applyVolume;
     }
 
     public float TargetVolume => targetVolume;
@@ -33,10 +39,15 @@ public sealed class BgmVolumeController
             return false;
         }
 
-        originalVolume = Math.Clamp(configuredVolume / 100f, 0f, 1f);
+        InitializeVolume(configuredVolume / 100f);
+        return true;
+    }
+
+    internal void InitializeVolume(float configuredVolume)
+    {
+        originalVolume = Math.Clamp(configuredVolume, 0f, 1f);
         currentVolume = originalVolume;
         targetVolume = originalVolume;
-        return true;
     }
 
     public void UpdateBaseline(float configuredVolume)
@@ -48,14 +59,14 @@ public sealed class BgmVolumeController
         }
 
         originalVolume = newBaseline;
-        if (!isControlling || isReleasing)
+        if (!isControlling)
         {
             currentVolume = newBaseline;
             targetVolume = newBaseline;
         }
         else
         {
-            targetVolume = newBaseline * targetRatio;
+            targetVolume = isReleasing ? newBaseline : newBaseline * targetRatio;
         }
     }
 
@@ -98,9 +109,9 @@ public sealed class BgmVolumeController
             currentVolume = MoveToward(currentVolume, targetVolume, (float)maxDelta);
         }
 
-        Apply(currentVolume);
+        var applied = Apply(currentVolume);
 
-        if (isReleasing && Math.Abs(currentVolume - originalVolume) < 0.0001f)
+        if (applied && isReleasing && Math.Abs(currentVolume - originalVolume) < 0.0001f)
         {
             currentVolume = originalVolume;
             isControlling = false;
@@ -118,9 +129,11 @@ public sealed class BgmVolumeController
         targetVolume = originalVolume;
         targetRatio = 1f;
         currentVolume = originalVolume;
-        Apply(originalVolume);
-        isControlling = false;
-        isReleasing = false;
+        if (Apply(originalVolume))
+        {
+            isControlling = false;
+            isReleasing = false;
+        }
     }
 
     private static float MoveToward(float from, float to, float delta)
@@ -133,21 +146,26 @@ public sealed class BgmVolumeController
         return from + Math.Sign(to - from) * delta;
     }
 
-    private unsafe void Apply(float volume)
+    private unsafe bool Apply(float volume)
     {
+        if (applyVolume is not null)
+        {
+            return applyVolume(Math.Clamp(volume, 0f, 1f));
+        }
         var manager = SoundManager.Instance();
         if (manager == null)
         {
             if (!soundManagerWarningLogged)
             {
-                log.Warning("The game's sound manager is unavailable; BGM volume cannot be changed.");
+                log!.Warning("The game's sound manager is unavailable; BGM volume cannot be changed.");
                 soundManagerWarningLogged = true;
             }
 
-            return;
+            return false;
         }
 
         soundManagerWarningLogged = false;
         manager->SetVolume(SoundBus.Music, Math.Clamp(volume, 0f, 1f));
+        return true;
     }
 }

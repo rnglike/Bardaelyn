@@ -13,7 +13,10 @@ public enum RuleCondition
     InDuty,
     InCutscene,
     HasTarget,
-    LowHp
+    LowHp,
+    Swimming,
+    Underwater,
+    EorzeaTime
 }
 
 [Serializable]
@@ -26,15 +29,20 @@ public sealed class BgmRule
     public float ActivateAfterSeconds { get; set; }
     public float DeactivateAfterSeconds { get; set; } = 3f;
     public bool RequireAll { get; set; } = true;
+    public float LowHpThresholdPercent { get; set; } = 30f;
+    public bool UseGlobalFades { get; set; } = true;
+    public float FadeInSeconds { get; set; } = 2f;
+    public float FadeOutSeconds { get; set; } = 2f;
+    public List<EorzeaPeriod> TimePeriods { get; set; } = [];
     public List<RuleCondition> Conditions { get; set; } = [];
+    public List<RuleCondition> ExcludedConditions { get; set; } = [];
+    public bool InterruptSilence { get; set; }
+    public CycleSettings Cycle { get; set; } = new();
 }
 
 public sealed class RuleSettings
 {
     public float DefaultVolume { get; init; } = 1f;
-    public float LowHpThresholdPercent { get; init; } = 30f;
-    public bool LowHpRuleEnabled { get; init; } = true;
-    public float LowHpVolume { get; init; } = 1f;
-    public int LowHpPriority { get; init; } = 100;
+    public EorzeaPeriods TimePeriods { get; init; } = new();
     public IReadOnlyList<BgmRule> Rules { get; init; } = Array.Empty<BgmRule>();
 }

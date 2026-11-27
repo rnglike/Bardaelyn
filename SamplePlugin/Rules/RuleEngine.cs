@@ -9,6 +9,9 @@ public sealed class RuleDecision
 {
     public float TargetVolume { get; init; }
     public string RuleName { get; init; } = "Default";
+    public BgmRule? SelectedRule { get; init; }
+    public bool InterruptSilence { get; init; }
+    public IReadOnlySet<BgmRule> ActiveRules { get; init; } = new HashSet<BgmRule>();
 }
 
 public sealed class RuleEngine
@@ -43,7 +46,6 @@ public sealed class RuleEngine
         }
 
         var defaultVolume = ClampFinite(settings.DefaultVolume, 1f);
-        var lowHpThreshold = ClampPercent(settings.LowHpThresholdPercent, 30f);
         foreach (var rule in settings.Rules)
         {
             if (!timings.TryGetValue(rule, out var timing))
@@ -53,7 +55,7 @@ public sealed class RuleEngine
             }
 
             var rawMatch = rule.Enabled &&
-                           Matches(rule, state, lowHpThreshold);
+                           Matches(rule, state, settings.TimePeriods);
 
             if (rawMatch)
             {
@@ -68,10 +70,14 @@ public sealed class RuleEngine
         }
 
         BgmRule? selected = null;
-        foreach (var rule in settings.Rules
-                     .Where(rule => rule.Enabled)
-                     .OrderByDescending(rule => rule.Priority))
+        var eligibleRules = new HashSet<BgmRule>();
+        foreach (var rule in settings.Rules)
         {
+            if (!rule.Enabled)
+            {
+                continue;
+            }
+
             if (!timings.TryGetValue(rule, out var timing))
             {
                 continue;
@@ -82,8 +88,8 @@ public sealed class RuleEngine
                 var requiredSeconds = ClampSeconds(rule.ActivateAfterSeconds);
                 if (now - timing.MatchSince.Value >= TimeSpan.FromSeconds(requiredSeconds))
                 {
-                    selected = rule;
-                    break;
+                    eligibleRules.Add(rule);
+                    selected ??= rule;
                 }
             }
             else if (timing.LastSelected &&
@@ -91,22 +97,9 @@ public sealed class RuleEngine
                      now - timing.NoMatchSince.Value <
                      TimeSpan.FromSeconds(ClampSeconds(rule.DeactivateAfterSeconds)))
             {
-                selected = rule;
-                break;
+                eligibleRules.Add(rule);
+                selected ??= rule;
             }
-        }
-
-        if (settings.LowHpRuleEnabled &&
-            state.HpPercent <= lowHpThreshold)
-        {
-            selected = settings.LowHpPriority >= (selected?.Priority ?? int.MinValue)
-                ? new BgmRule
-                {
-                    Name = "Low HP",
-                    Priority = settings.LowHpPriority,
-                    TargetVolume = ClampFinite(settings.LowHpVolume, 1f)
-                }
-                : selected;
         }
 
         foreach (var rule in settings.Rules)
@@ -121,12 +114,16 @@ public sealed class RuleEngine
             ? new RuleDecision
             {
                 TargetVolume = defaultVolume,
-                RuleName = "Default"
+                RuleName = "Default",
+                ActiveRules = eligibleRules
             }
             : new RuleDecision
             {
                 TargetVolume = ClampFinite(selected.TargetVolume, defaultVolume),
-                RuleName = selected.Name
+                RuleName = selected.Name,
+                SelectedRule = selected,
+                InterruptSilence = selected.InterruptSilence,
+                ActiveRules = eligibleRules
             };
 
         return LastDecision;
@@ -145,9 +142,13 @@ public sealed class RuleEngine
     private static double ClampSeconds(float value) =>
         float.IsFinite(value) ? Math.Clamp(value, 0f, 3600f) : 0f;
 
-    private static bool Matches(BgmRule rule, BgmStateSnapshot state, float lowHpThreshold)
+    internal static bool Matches(BgmRule rule, BgmStateSnapshot state, EorzeaPeriods? periods = null)
     {
-        if (rule.Conditions.Count == 0)
+        if (rule.Conditions.Count == 0 && rule.ExcludedConditions.Count == 0)
+        {
+            return false;
+        }
+        if (state.EorzeaMinute is null && rule.ExcludedConditions.Contains(RuleCondition.EorzeaTime))
         {
             return false;
         }
@@ -161,13 +162,22 @@ public sealed class RuleEngine
             RuleCondition.InDuty => state.IsInDuty,
             RuleCondition.InCutscene => state.IsInCutscene,
             RuleCondition.HasTarget => state.HasTarget,
-            RuleCondition.LowHp => state.HpPercent <= lowHpThreshold,
+            RuleCondition.LowHp => state.HpPercent <= ClampPercent(rule.LowHpThresholdPercent, 30f),
+            RuleCondition.Swimming => state.IsSwimming,
+            RuleCondition.Underwater => state.IsUnderwater,
+            RuleCondition.EorzeaTime => state.EorzeaMinute is int minute &&
+                periods is not null && rule.TimePeriods.Any(period => periods.Contains(period, minute)),
             _ => false
         };
 
-        return rule.RequireAll
+        if (rule.ExcludedConditions.Any(ConditionMatches))
+        {
+            return false;
+        }
+
+        return rule.Conditions.Count == 0 || (rule.RequireAll
             ? rule.Conditions.All(ConditionMatches)
-            : rule.Conditions.Any(ConditionMatches);
+            : rule.Conditions.Any(ConditionMatches));
     }
 
     private sealed class RuleTiming
