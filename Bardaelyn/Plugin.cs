@@ -180,8 +180,7 @@ public sealed class Plugin : IDalamudPlugin
                 CycleStatus = cycleDecision.Status;
                 VolumeController.SetTarget(
                     cycleDecision.TargetVolume,
-                    fadeSelector.Select(decision.SelectedRule, cycleDecision.TargetVolume,
-                        Configuration.FadeInSeconds!.Value, Configuration.FadeOutSeconds!.Value));
+                    fadeSelector.Select(decision.SelectedRule, cycleDecision.TargetVolume));
             }
         }
         else
@@ -209,7 +208,7 @@ public sealed class Plugin : IDalamudPlugin
     public void ToggleMainUi() => MainWindow.Toggle();
     public void ToggleTimePeriodsUi() => TimePeriodsWindow.Toggle();
 
-    private float ReleaseFade() => fadeSelector.Release(Configuration.FadeInSeconds!.Value, Configuration.FadeOutSeconds!.Value);
+    private float ReleaseFade() => fadeSelector.Release();
 
     public void SwitchProfile(string name)
     {

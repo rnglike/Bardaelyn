@@ -1,6 +1,7 @@
 using Bardaelyn;
 using Bardaelyn.Rules;
 using Bardaelyn.State;
+using System.Text.Json;
 using Xunit;
 
 namespace Bardaelyn.Tests;
@@ -63,28 +64,64 @@ public sealed class TimingFeaturesTests
     {
         var config = new Configuration
         {
-            Version = 3, FadeDurationSeconds = 4,
+            Version = 3, FadeDurationSeconds = 4, FadeInSeconds = 5, FadeOutSeconds = 6,
+            Rules = [new BgmRule { Name = "Active" }],
             ActiveProfileName = "A",
             Profiles = [new SettingsProfile { Name = "A", FadeDurationSeconds = 4 },
-                        new SettingsProfile { Name = "B", FadeDurationSeconds = 7 }]
+                        new SettingsProfile { Name = "B", FadeDurationSeconds = 7,
+                            Rules = [new BgmRule { Name = "Inherited" },
+                                     new BgmRule { Name = "Custom", UseGlobalFades = false, FadeInSeconds = 9, FadeOutSeconds = 3 }] }]
         };
         config.Normalize();
-        Assert.Equal(4, config.FadeInSeconds);
+        Assert.Equal(5, config.Rules[0].FadeInSeconds);
+        Assert.Equal(6, config.Rules[0].FadeOutSeconds);
         config.TimePeriods.MorningStart = 400;
         config.SwitchProfile("B");
-        Assert.Equal(7, config.FadeInSeconds);
-        Assert.Equal(7, config.FadeOutSeconds);
+        Assert.Equal(7, config.Rules[0].FadeInSeconds);
+        Assert.Equal(7, config.Rules[0].FadeOutSeconds);
+        Assert.Equal(9, config.Rules[1].FadeInSeconds);
+        Assert.Equal(3, config.Rules[1].FadeOutSeconds);
         Assert.Equal(360, config.TimePeriods.MorningStart);
-        config.FadeOutSeconds = 3;
+        config.Rules[0].FadeOutSeconds = 3;
         config.TimePeriods.MorningStart = 500;
-        config.Rules.Add(new BgmRule { TimePeriods = [EorzeaPeriod.Night], UseGlobalFades = false, FadeInSeconds = 9 });
+        config.Rules[1].TimePeriods.Add(EorzeaPeriod.Night);
         config.SwitchProfile("A");
         Assert.Equal(400, config.TimePeriods.MorningStart);
         config.SwitchProfile("B");
-        Assert.Equal(3, config.FadeOutSeconds);
+        Assert.Equal(3, config.Rules[0].FadeOutSeconds);
         Assert.Equal(500, config.TimePeriods.MorningStart);
-        Assert.Equal(EorzeaPeriod.Night, Assert.Single(Assert.Single(config.Rules).TimePeriods));
-        Assert.Equal(9, config.Rules[0].FadeInSeconds);
+        Assert.Equal(EorzeaPeriod.Night, Assert.Single(config.Rules[1].TimePeriods));
+        Assert.Equal(9, config.Rules[1].FadeInSeconds);
+        var restored = JsonSerializer.Deserialize<Configuration>(JsonSerializer.Serialize(config))!;
+        restored.Normalize();
+        restored.SwitchProfile("A");
+        Assert.Equal(5, restored.Rules[0].FadeInSeconds);
+        Assert.Equal(6, restored.Rules[0].FadeOutSeconds);
+        restored.SwitchProfile("B");
+        Assert.Equal(3, restored.Rules[0].FadeOutSeconds);
+    }
+
+    // Preserves an inactive profile's directional fades through migration and saving.
+    [Fact]
+    public void InactiveProfileMigratesDirectionalFadesBeforeSaving()
+    {
+        const string json = """
+            {"Version":3,"ActiveProfileName":"A","Rules":[],
+             "Profiles":[{"Name":"A","Rules":[]},
+                         {"Name":"B","FadeDurationSeconds":2,"FadeInSeconds":11,"FadeOutSeconds":13,
+                          "Rules":[{"Name":"Inherited"},{"Name":"Custom","UseGlobalFades":false,
+                                    "FadeInSeconds":4,"FadeOutSeconds":5}]}]}
+            """;
+        var config = JsonSerializer.Deserialize<Configuration>(json)!;
+        config.Normalize();
+        config.SaveActiveProfile();
+        var restored = JsonSerializer.Deserialize<Configuration>(JsonSerializer.Serialize(config))!;
+        restored.Normalize();
+        restored.SwitchProfile("B");
+        Assert.Equal(11, restored.Rules[0].FadeInSeconds);
+        Assert.Equal(13, restored.Rules[0].FadeOutSeconds);
+        Assert.Equal(4, restored.Rules[1].FadeInSeconds);
+        Assert.Equal(5, restored.Rules[1].FadeOutSeconds);
     }
 
     // Selects incoming or outgoing fades and preserves an ongoing transition.
@@ -94,13 +131,15 @@ public sealed class TimingFeaturesTests
         var selector = new FadeSelector();
         var first = new BgmRule { UseGlobalFades = false, FadeInSeconds = 5, FadeOutSeconds = 7 };
         var second = new BgmRule { UseGlobalFades = false, FadeInSeconds = 0, FadeOutSeconds = 3 };
-        Assert.Equal(5, selector.Select(first, 0.4f, 2, 4));
-        Assert.Equal(7, selector.Select(second, 0.8f, 2, 4));
-        Assert.Equal(7, selector.Select(second, 0.8f, 2, 4));
-        Assert.Equal(3, selector.Select(second, 0.2f, 2, 4));
-        Assert.Equal(3, selector.Release(0, 4));
-        Assert.Equal(3, selector.Release(0, 4));
-        Assert.Equal(2, selector.Select(null, 1, 2, 4));
+        Assert.Equal(5, selector.Select(first, 0.4f));
+        Assert.Equal(7, selector.Select(second, 0.8f));
+        Assert.Equal(7, selector.Select(second, 0.8f));
+        Assert.Equal(3, selector.Select(second, 0.2f));
+        Assert.Equal(3, selector.Release());
+        Assert.Equal(3, selector.Release());
+        Assert.Equal(3, selector.Select(null, 1));
+        Assert.Equal(0, selector.Select(null, 0.5f));
+        Assert.Equal(0, selector.Release());
     }
 
     // Makes cycle transitions immediate when both directional fades are zero.
@@ -109,8 +148,25 @@ public sealed class TimingFeaturesTests
     {
         var selector = new FadeSelector();
         var rule = new BgmRule { UseGlobalFades = false, FadeInSeconds = 0, FadeOutSeconds = 0 };
-        Assert.Equal(0, selector.Select(rule, 0.5f, 0, 0));
-        Assert.Equal(0, selector.Select(rule, 0.1f, 0, 0));
-        Assert.Equal(0, selector.Select(rule, 0.5f, 0, 0));
+        Assert.Equal(0, selector.Select(rule, 0.5f));
+        Assert.Equal(0, selector.Select(rule, 0.1f));
+        Assert.Equal(0, selector.Select(rule, 0.5f));
+    }
+
+    // Uses the outgoing rule's fade when returning to default, then applies default changes immediately.
+    [Fact]
+    public void DefaultAndReleaseUseOutgoingFadeOnlyWhenARuleWasActive()
+    {
+        var selector = new FadeSelector();
+        Assert.Equal(0, selector.Select(null, 1));
+        Assert.Equal(0, selector.Release());
+        var rule = new BgmRule { FadeInSeconds = 4, FadeOutSeconds = 8 };
+        Assert.Equal(4, selector.Select(rule, 0.4f));
+        Assert.Equal(8, selector.Select(null, 1));
+        Assert.Equal(8, selector.Select(null, 1));
+        Assert.Equal(0, selector.Select(null, 0.2f));
+        Assert.Equal(0, selector.Release());
+        Assert.Equal(4, selector.Select(rule, 0.4f));
+        Assert.Equal(8, selector.Release());
     }
 }

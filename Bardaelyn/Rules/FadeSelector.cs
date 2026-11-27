@@ -11,13 +11,13 @@ public sealed class FadeSelector
     private bool hasTarget;
     private bool releasing;
 
-    public float Select(BgmRule? rule, float target, float globalIn, float globalOut)
+    public float Select(BgmRule? rule, float target)
     {
-        var incomingIn = rule is null || rule.UseGlobalFades ? globalIn : rule.FadeInSeconds;
-        var incomingOut = rule is null || rule.UseGlobalFades ? globalOut : rule.FadeOutSeconds;
+        var incomingIn = rule?.FadeInSeconds ?? 0f;
+        var incomingOut = rule?.FadeOutSeconds ?? 0f;
         if (!hasTarget || releasing || !ReferenceEquals(rule, previousRule))
         {
-            transitionSeconds = incomingIn > 0 ? incomingIn : hasTarget ? previousOut : globalOut;
+            transitionSeconds = incomingIn > 0 ? incomingIn : hasTarget ? previousOut : 0f;
         }
         else if (Math.Abs(target - previousTarget) > 0.0001f)
         {
@@ -33,11 +33,11 @@ public sealed class FadeSelector
         return transitionSeconds;
     }
 
-    public float Release(float globalIn, float globalOut)
+    public float Release()
     {
         if (!releasing)
         {
-            transitionSeconds = globalIn > 0 ? globalIn : hasTarget ? previousOut : globalOut;
+            transitionSeconds = hasTarget ? previousOut : 0f;
             releasing = true;
         }
         return transitionSeconds;

@@ -48,6 +48,21 @@ public class Configuration : IPluginConfiguration
         GlobalCycle.Normalize();
         Rules ??= [];
 
+        if (Version < 4)
+        {
+            MigrateRuleFades(Rules, FadeInSeconds.Value, FadeOutSeconds.Value);
+            if (Profiles is not null)
+            {
+                foreach (var profile in Profiles)
+                {
+                    var legacyFade = ClampFinite(profile.FadeDurationSeconds, 2f, 0f, 60f);
+                    var fadeIn = ClampFinite(profile.FadeInSeconds ?? legacyFade, legacyFade, 0f, 60f);
+                    var fadeOut = ClampFinite(profile.FadeOutSeconds ?? legacyFade, legacyFade, 0f, 60f);
+                    MigrateRuleFades(profile.Rules, fadeIn, fadeOut);
+                }
+            }
+        }
+
         for (var index = Rules.Count - 1; index >= 0; index--)
         {
             var rule = Rules[index];
@@ -98,7 +113,7 @@ public class Configuration : IPluginConfiguration
             Rules = Rules.OrderByDescending(rule => rule.Priority).ToList();
         }
 
-        Version = Math.Max(3, Version);
+        Version = Math.Max(4, Version);
         if (Profiles is null)
         {
             ActiveProfileName = "Current settings";
@@ -179,6 +194,24 @@ public class Configuration : IPluginConfiguration
         TimePeriods = TimePeriods,
         Rules = Rules
     };
+
+    private static void MigrateRuleFades(List<BgmRule>? rules, float fadeIn, float fadeOut)
+    {
+        if (rules is null)
+        {
+            return;
+        }
+
+        foreach (var rule in rules)
+        {
+            if (rule is not null && rule.UseGlobalFades)
+            {
+                rule.FadeInSeconds = fadeIn;
+                rule.FadeOutSeconds = fadeOut;
+                rule.UseGlobalFades = false;
+            }
+        }
+    }
 
     private static float ClampFinite(float value, float fallback, float minimum, float maximum) =>
         float.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : fallback;

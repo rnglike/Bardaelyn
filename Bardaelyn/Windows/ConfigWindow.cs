@@ -53,18 +53,6 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        var fadeIn = configuration.FadeInSeconds!.Value;
-        if (Number("Global fade in (seconds)", ref fadeIn, 0f, 60f, "%.1f"))
-        {
-            configuration.FadeInSeconds = fadeIn;
-            configuration.Save();
-        }
-        var fadeOut = configuration.FadeOutSeconds!.Value;
-        if (Number("Global fade out (seconds)", ref fadeOut, 0f, 60f, "%.1f"))
-        {
-            configuration.FadeOutSeconds = fadeOut;
-            configuration.Save();
-        }
         if (ImGui.Button("Configure Eorzea time periods"))
         {
             plugin.ToggleTimePeriodsUi();
@@ -291,26 +279,17 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.TextWrapped("Fades control how gradually volume changes after a rule takes effect. Fade durations describe a full-scale volume change; smaller changes finish sooner.");
-        var useGlobalFades = rule.UseGlobalFades;
-        if (ImGui.Checkbox("Use global fades", ref useGlobalFades))
+        var fadeIn = rule.FadeInSeconds;
+        if (Number("Rule fade in (seconds)", ref fadeIn, 0f, 60f, "%.1f"))
         {
-            rule.UseGlobalFades = useGlobalFades;
+            rule.FadeInSeconds = fadeIn;
             configuration.Save();
         }
-        if (!useGlobalFades)
+        var fadeOut = rule.FadeOutSeconds;
+        if (Number("Rule fade out (seconds)", ref fadeOut, 0f, 60f, "%.1f"))
         {
-            var fadeIn = rule.FadeInSeconds;
-            if (Number("Rule fade in (seconds)", ref fadeIn, 0f, 60f, "%.1f"))
-            {
-                rule.FadeInSeconds = fadeIn;
-                configuration.Save();
-            }
-            var fadeOut = rule.FadeOutSeconds;
-            if (Number("Rule fade out (seconds)", ref fadeOut, 0f, 60f, "%.1f"))
-            {
-                rule.FadeOutSeconds = fadeOut;
-                configuration.Save();
-            }
+            rule.FadeOutSeconds = fadeOut;
+            configuration.Save();
         }
 
         var requireAll = rule.RequireAll;
