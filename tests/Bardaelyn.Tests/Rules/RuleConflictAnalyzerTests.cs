@@ -42,4 +42,17 @@ public sealed class RuleConflictAnalyzerTests
         upper.LowHpThresholdPercent = 40;
         Assert.Same(upper, RuleConflictAnalyzer.FindCoveringRule([upper, lower], 1));
     }
+
+    // Detects possible idle/water overlap without reporting impossible idle/combat overlap.
+    [Fact]
+    public void FindsFeasibleOverlapsBetweenDifferentConditions()
+    {
+        var idle = new BgmRule { Conditions = [RuleCondition.Idle] };
+        var water = new BgmRule { Conditions = [RuleCondition.Underwater] };
+        var combat = new BgmRule { Conditions = [RuleCondition.InCombat] };
+        Assert.Same(idle, RuleConflictAnalyzer.FindOverlappingRule([idle, water], 1));
+        Assert.Null(RuleConflictAnalyzer.FindOverlappingRule([combat, idle], 1));
+        water.ExcludedConditions.Add(RuleCondition.Idle);
+        Assert.Null(RuleConflictAnalyzer.FindOverlappingRule([idle, water], 1));
+    }
 }

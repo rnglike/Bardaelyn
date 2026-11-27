@@ -12,6 +12,7 @@ public sealed class RuleDecision
     public BgmRule? SelectedRule { get; init; }
     public bool InterruptSilence { get; init; }
     public IReadOnlySet<BgmRule> ActiveRules { get; init; } = new HashSet<BgmRule>();
+    public IReadOnlyDictionary<BgmRule, double> ActivationRemainingSeconds { get; init; } = new Dictionary<BgmRule, double>();
 }
 
 public sealed class RuleEngine
@@ -71,6 +72,7 @@ public sealed class RuleEngine
 
         BgmRule? selected = null;
         var eligibleRules = new HashSet<BgmRule>();
+        var waitingRules = new Dictionary<BgmRule, double>();
         foreach (var rule in settings.Rules)
         {
             if (!rule.Enabled)
@@ -90,6 +92,10 @@ public sealed class RuleEngine
                 {
                     eligibleRules.Add(rule);
                     selected ??= rule;
+                }
+                else
+                {
+                    waitingRules[rule] = Math.Max(0, requiredSeconds - (now - timing.MatchSince.Value).TotalSeconds);
                 }
             }
             else if (timing.LastSelected &&
@@ -115,7 +121,8 @@ public sealed class RuleEngine
             {
                 TargetVolume = defaultVolume,
                 RuleName = "Default",
-                ActiveRules = eligibleRules
+                ActiveRules = eligibleRules,
+                ActivationRemainingSeconds = waitingRules
             }
             : new RuleDecision
             {
@@ -123,7 +130,8 @@ public sealed class RuleEngine
                 RuleName = selected.Name,
                 SelectedRule = selected,
                 InterruptSilence = selected.InterruptSilence,
-                ActiveRules = eligibleRules
+                ActiveRules = eligibleRules,
+                ActivationRemainingSeconds = waitingRules
             };
 
         return LastDecision;

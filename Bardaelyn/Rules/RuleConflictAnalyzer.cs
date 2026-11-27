@@ -26,7 +26,23 @@ public static class RuleConflictAnalyzer
         return null;
     }
 
+    public static BgmRule? FindOverlappingRule(IReadOnlyList<BgmRule> rules, int index)
+    {
+        var target = rules[index];
+        if (!target.Enabled || (target.Conditions.Count == 0 && target.ExcludedConditions.Count == 0))
+            return null;
+        for (var i = 0; i < index; i++)
+        {
+            if (rules[i].Enabled && Compare(rules[i], target, false))
+                return rules[i];
+        }
+        return null;
+    }
+
     private static bool Covers(BgmRule candidate, BgmRule target)
+        => Compare(candidate, target, true);
+
+    private static bool Compare(BgmRule candidate, BgmRule target, bool requireCoverage)
     {
         if (candidate.Conditions.Contains(RuleCondition.EorzeaTime) ||
             candidate.ExcludedConditions.Contains(RuleCondition.EorzeaTime) ||
@@ -55,17 +71,23 @@ public static class RuleConflictAnalyzer
                     HasTarget = (flags & 64) != 0, IsSwimming = (flags & 128) != 0,
                     IsUnderwater = (flags & 256) != 0, HpPercent = hp
                 };
+                if (!requireCoverage && state.IsIdle &&
+                    (state.IsMoving || state.IsInCombat || state.IsInDuty || state.IsInCutscene))
+                    continue;
                 if (!RuleEngine.Matches(target, state))
                 {
                     continue;
                 }
                 found = true;
-                if (!RuleEngine.Matches(candidate, state))
+                var candidateMatches = RuleEngine.Matches(candidate, state);
+                if (!requireCoverage && candidateMatches)
+                    return true;
+                if (requireCoverage && !candidateMatches)
                 {
                     return false;
                 }
             }
         }
-        return found;
+        return requireCoverage && found;
     }
 }

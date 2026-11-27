@@ -86,6 +86,25 @@ public sealed class RuleEngineTests
         Assert.Equal("Mounted", engine.Evaluate(State(isMounted: true), Start.AddSeconds(10)).RuleName);
     }
 
+    // Reports remaining activation time while a matching higher-priority rule is waiting.
+    [Fact]
+    public void ReportsRemainingActivationDelayForMatchingRules()
+    {
+        var delayed = Rule("Delayed", RuleCondition.Mounted, activateAfter: 10);
+        var immediate = Rule("Immediate", RuleCondition.Mounted);
+        var engine = CreateEngine(new RuleSettings { Rules = [delayed, immediate] });
+        var first = engine.Evaluate(State(isMounted: true), Start);
+        Assert.Equal("Immediate", first.RuleName);
+        Assert.Equal(10, first.ActivationRemainingSeconds[delayed]);
+        var next = engine.Evaluate(State(isMounted: true), Start.AddSeconds(4));
+        Assert.Equal(6, next.ActivationRemainingSeconds[delayed]);
+        var active = engine.Evaluate(State(isMounted: true), Start.AddSeconds(10));
+        Assert.Equal("Delayed", active.RuleName);
+        Assert.False(active.ActivationRemainingSeconds.ContainsKey(delayed));
+        var reset = engine.Evaluate(State(), Start.AddSeconds(11));
+        Assert.False(reset.ActivationRemainingSeconds.ContainsKey(delayed));
+    }
+
     // Keeps a selected rule active during its deactivation delay.
     [Fact]
     public void HoldsSelectedRuleDuringDeactivationDelay()
