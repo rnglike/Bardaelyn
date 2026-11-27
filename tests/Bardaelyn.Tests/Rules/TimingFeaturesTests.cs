@@ -210,4 +210,19 @@ public sealed class TimingFeaturesTests
         Assert.Equal(4, selector.Select(rule, 0.4f));
         Assert.Equal(8, selector.Release());
     }
+
+    // Applies the optional default-cycle fade only to phase changes without an active rule.
+    [Fact]
+    public void DefaultCycleFadeDoesNotOverrideRuleTransitions()
+    {
+        var selector = new FadeSelector();
+        Assert.Equal(6, selector.Select(null, 0, true, 6));
+        Assert.Equal(6, selector.Select(null, 0.5f, false, 6));
+        Assert.Equal(6, selector.Select(null, 0.5f, false, 6));
+        var rule = new BgmRule { FadeInSeconds = 3, FadeOutSeconds = 4 };
+        Assert.Equal(3, selector.Select(rule, 0.8f, false, 6));
+        Assert.Equal(4, selector.Select(null, 0.5f, false, 6));
+        Assert.Equal(6, selector.Select(null, 0f, true, 6));
+        Assert.Equal(0, selector.Select(null, 0.2f, true, 6));
+    }
 }

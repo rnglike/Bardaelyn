@@ -23,6 +23,7 @@ public enum RuleCondition
 public sealed class BgmRule
 {
     public string Name { get; set; } = "New rule";
+    public string Group { get; set; } = "";
     public bool Enabled { get; set; } = true;
     public int Priority { get; set; } = 50;
     public float TargetVolume { get; set; } = 0.5f;

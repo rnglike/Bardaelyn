@@ -13,6 +13,7 @@ public class Configuration : IPluginConfiguration
 
     public bool Enabled { get; set; } = true;
     public float DefaultVolume { get; set; } = 1f;
+    public bool ExactFadeDuration { get; set; }
     public float FadeDurationSeconds { get; set; } = 2f;
     public float? FadeInSeconds { get; set; }
     public float? FadeOutSeconds { get; set; }
@@ -75,6 +76,11 @@ public class Configuration : IPluginConfiguration
             if (rule.Name.Length > 64)
             {
                 rule.Name = rule.Name[..64];
+            }
+            rule.Group = (rule.Group ?? "").Trim();
+            if (rule.Group.Length > 64)
+            {
+                rule.Group = rule.Group[..64];
             }
 
             rule.TargetVolume = ClampFinite(rule.TargetVolume, 0.5f, 0f, 1f);

@@ -136,7 +136,7 @@ public sealed class Plugin : IDalamudPlugin
                     gameConfigReadWarningLogged = true;
                 }
 
-                VolumeController.Release(ReleaseFade());
+                VolumeController.Release(ReleaseFade(), Configuration.ExactFadeDuration);
                 SilenceCycleEngine.Suspend();
                 CycleStatus = "Paused (BGM setting unavailable)";
                 VolumeController.Update(elapsed);
@@ -159,7 +159,7 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     SilenceCycleEngine.Suspend();
                     CycleStatus = "Paused (player unavailable)";
-                    VolumeController.Release(ReleaseFade());
+                    VolumeController.Release(ReleaseFade(), Configuration.ExactFadeDuration);
                     VolumeController.Update(elapsed);
                     return;
                 }
@@ -180,7 +180,10 @@ public sealed class Plugin : IDalamudPlugin
                 CycleStatus = cycleDecision.Status;
                 VolumeController.SetTarget(
                     cycleDecision.TargetVolume,
-                    fadeSelector.Select(decision.SelectedRule, cycleDecision.TargetVolume));
+                    fadeSelector.Select(decision.SelectedRule, cycleDecision.TargetVolume,
+                        cycleDecision.DefaultCycleQuiet,
+                        Configuration.GlobalCycle.UseDefaultCycleFade ? Configuration.GlobalCycle.DefaultCycleFadeSeconds : null),
+                    Configuration.ExactFadeDuration);
             }
         }
         else
@@ -198,7 +201,7 @@ public sealed class Plugin : IDalamudPlugin
                 gameConfigReadWarningLogged = true;
             }
 
-            VolumeController.Release(ReleaseFade());
+            VolumeController.Release(ReleaseFade(), Configuration.ExactFadeDuration);
         }
 
         VolumeController.Update(elapsed);

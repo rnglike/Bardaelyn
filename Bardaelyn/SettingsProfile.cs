@@ -11,6 +11,7 @@ public sealed class SettingsProfile
     public string Name { get; set; } = "";
     public bool Enabled { get; set; }
     public float DefaultVolume { get; set; }
+    public bool ExactFadeDuration { get; set; }
     public float FadeDurationSeconds { get; set; }
     public float? FadeInSeconds { get; set; }
     public float? FadeOutSeconds { get; set; }
@@ -26,6 +27,7 @@ public sealed class SettingsProfile
         Name = name,
         Enabled = config.Enabled,
         DefaultVolume = config.DefaultVolume,
+        ExactFadeDuration = config.ExactFadeDuration,
         FadeDurationSeconds = config.FadeDurationSeconds,
         FadeInSeconds = config.FadeInSeconds,
         FadeOutSeconds = config.FadeOutSeconds,
@@ -41,6 +43,7 @@ public sealed class SettingsProfile
     {
         config.Enabled = Enabled;
         config.DefaultVolume = DefaultVolume;
+        config.ExactFadeDuration = ExactFadeDuration;
         config.FadeDurationSeconds = FadeDurationSeconds;
         config.FadeInSeconds = FadeInSeconds;
         config.FadeOutSeconds = FadeOutSeconds;
@@ -57,14 +60,16 @@ public sealed class SettingsProfile
         Enabled = cycle.Enabled, RandomDurations = cycle.RandomDurations,
         UseQuietProbability = cycle.UseQuietProbability, QuietChancePercent = cycle.QuietChancePercent,
         AttemptIntervalSeconds = cycle.AttemptIntervalSeconds,
+        MinimumMusicSeconds = cycle.MinimumMusicSeconds,
+        UseDefaultCycleFade = cycle.UseDefaultCycleFade, DefaultCycleFadeSeconds = cycle.DefaultCycleFadeSeconds,
         StartQuietOnNaturalGap = cycle.StartQuietOnNaturalGap, QuietVolume = cycle.QuietVolume,
         QuietMinSeconds = cycle.QuietMinSeconds, QuietMaxSeconds = cycle.QuietMaxSeconds,
         MusicMinSeconds = cycle.MusicMinSeconds, MusicMaxSeconds = cycle.MusicMaxSeconds
     };
 
-    private static BgmRule CopyRule(BgmRule rule) => new()
+    internal static BgmRule CopyRule(BgmRule rule) => new()
     {
-        Name = rule.Name, Enabled = rule.Enabled, Priority = rule.Priority,
+        Name = rule.Name, Group = rule.Group, Enabled = rule.Enabled, Priority = rule.Priority,
         TargetVolume = rule.TargetVolume, ActivateAfterSeconds = rule.ActivateAfterSeconds,
         DeactivateAfterSeconds = rule.DeactivateAfterSeconds, SeparateDelays = rule.SeparateDelays,
         RequireAll = rule.RequireAll,
