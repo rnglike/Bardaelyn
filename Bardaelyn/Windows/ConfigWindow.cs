@@ -386,19 +386,19 @@ public class ConfigWindow : Window, IDisposable
                 rule.LowHpThresholdPercent = threshold;
                 configuration.Save();
             }
+        }
 
-            if (rule.Conditions.Contains(RuleCondition.EorzeaTime) || rule.ExcludedConditions.Contains(RuleCondition.EorzeaTime))
+        if (rule.Conditions.Contains(RuleCondition.EorzeaTime) || rule.ExcludedConditions.Contains(RuleCondition.EorzeaTime))
+        {
+            ImGui.TextUnformatted("Selected Eorzea periods (any):");
+            foreach (var period in Enum.GetValues<EorzeaPeriod>())
             {
-                ImGui.TextUnformatted("Selected Eorzea periods (any):");
-                foreach (var period in Enum.GetValues<EorzeaPeriod>())
+                var selected = rule.TimePeriods.Contains(period);
+                if (ImGui.Checkbox(period.ToString(), ref selected))
                 {
-                    var selected = rule.TimePeriods.Contains(period);
-                    if (ImGui.Checkbox(period.ToString(), ref selected))
-                    {
-                        if (selected) rule.TimePeriods.Add(period);
-                        else rule.TimePeriods.Remove(period);
-                        configuration.Save();
-                    }
+                    if (selected) rule.TimePeriods.Add(period);
+                    else rule.TimePeriods.Remove(period);
+                    configuration.Save();
                 }
             }
         }
