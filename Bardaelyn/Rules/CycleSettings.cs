@@ -10,6 +10,9 @@ public sealed class CycleSettings
     public bool UseQuietProbability { get; set; }
     public float QuietChancePercent { get; set; } = 30f;
     public float AttemptIntervalSeconds { get; set; } = 60f;
+    public float MinimumMusicSeconds { get; set; }
+    public bool UseDefaultCycleFade { get; set; }
+    public float DefaultCycleFadeSeconds { get; set; } = 2f;
     public bool StartQuietOnNaturalGap { get; set; }
     public float QuietVolume { get; set; }
     public float QuietMinSeconds { get; set; } = 180f;
@@ -22,6 +25,8 @@ public sealed class CycleSettings
         QuietVolume = Clamp(QuietVolume, 0f, 0f, 1f);
         QuietChancePercent = Clamp(QuietChancePercent, 30f, 0f, 100f);
         AttemptIntervalSeconds = Clamp(AttemptIntervalSeconds, 60f, 1f, 3600f);
+        MinimumMusicSeconds = Clamp(MinimumMusicSeconds, 0f, 0f, 3600f);
+        DefaultCycleFadeSeconds = Clamp(DefaultCycleFadeSeconds, 2f, 0f, 60f);
         QuietMinSeconds = Clamp(QuietMinSeconds, 180f, 1f, 3600f);
         QuietMaxSeconds = Math.Max(QuietMinSeconds, Clamp(QuietMaxSeconds, 180f, 1f, 3600f));
         MusicMinSeconds = Clamp(MusicMinSeconds, 600f, 1f, 3600f);

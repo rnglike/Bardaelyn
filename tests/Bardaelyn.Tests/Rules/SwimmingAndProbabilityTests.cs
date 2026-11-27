@@ -53,6 +53,69 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Equal(1, calls);
     }
 
+    // Waits for the configured amount of detected music before the first probability attempt.
+    [Fact]
+    public void MinimumMusicPausesDuringNaturalSilenceAndAttemptsAtBoundary()
+    {
+        var calls = 0;
+        var engine = new SilenceCycleEngine(() => { calls++; return 0; });
+        var cycle = new CycleSettings { Enabled = true, UseQuietProbability = true,
+            QuietChancePercent = 100, QuietMinSeconds = 10, MinimumMusicSeconds = 5 };
+        var decision = new RuleDecision { TargetVolume = 1 };
+        engine.Evaluate(decision, cycle, Start, 1, 0);
+        Assert.Contains("music (5s", engine.Evaluate(decision, cycle, Start.AddSeconds(10), 1, 0).Status);
+        engine.Evaluate(decision, cycle, Start.AddSeconds(12), 0, 0);
+        engine.Evaluate(decision, cycle, Start.AddSeconds(30), 1, 0);
+        Assert.Contains("music (1s", engine.Evaluate(decision, cycle, Start.AddSeconds(32), 1, 0).Status);
+        Assert.Equal(0, calls);
+        Assert.Contains("quiet", engine.Evaluate(decision, cycle, Start.AddSeconds(33), 1, 0).Status);
+        Assert.Equal(1, calls);
+    }
+
+    // Allows natural-gap quiet to start before the probability minimum expires.
+    [Fact]
+    public void NaturalGapCanInterruptMinimumMusic()
+    {
+        var engine = new SilenceCycleEngine(() => 0.9);
+        var cycle = new CycleSettings { Enabled = true, UseQuietProbability = true, QuietMinSeconds = 10,
+            MinimumMusicSeconds = 30, StartQuietOnNaturalGap = true };
+        var decision = new RuleDecision { TargetVolume = 1 };
+        engine.Evaluate(decision, cycle, Start, 1, 0);
+        engine.Evaluate(decision, cycle, Start.AddSeconds(10), 1, 0);
+        Assert.Contains("quiet", engine.Evaluate(decision, cycle, Start.AddSeconds(12), 0, 0).Status);
+    }
+
+    // Preserves the first-attempt countdown while a rule interrupts the cycle.
+    [Fact]
+    public void MinimumMusicPausesDuringRuleInterruption()
+    {
+        var engine = new SilenceCycleEngine(() => 0);
+        var cycle = new CycleSettings { Enabled = true, UseQuietProbability = true,
+            QuietChancePercent = 100, QuietMinSeconds = 10, MinimumMusicSeconds = 5 };
+        var normal = new RuleDecision { TargetVolume = 1 };
+        var interrupt = new RuleDecision { TargetVolume = 1, InterruptSilence = true };
+        engine.Evaluate(normal, cycle, Start, 1, 0);
+        engine.Evaluate(normal, cycle, Start.AddSeconds(10), 1, 0);
+        engine.Evaluate(interrupt, cycle, Start.AddSeconds(12), 1, 0);
+        Assert.Contains("music (3s", engine.Evaluate(normal, cycle, Start.AddSeconds(100), 1, 0).Status);
+        Assert.Contains("quiet", engine.Evaluate(normal, cycle, Start.AddSeconds(103), 1, 0).Status);
+    }
+
+    // Applies the configured minimum when probability mode is enabled during music.
+    [Fact]
+    public void SwitchingToProbabilityUsesMinimumMusic()
+    {
+        var engine = new SilenceCycleEngine(() => 0);
+        var cycle = new CycleSettings { Enabled = true, QuietMinSeconds = 10, MusicMinSeconds = 20,
+            QuietChancePercent = 100, MinimumMusicSeconds = 5 };
+        var decision = new RuleDecision { TargetVolume = 1 };
+        engine.Evaluate(decision, cycle, Start, 1);
+        engine.Evaluate(decision, cycle, Start.AddSeconds(10), 1);
+        cycle.UseQuietProbability = true;
+        Assert.Contains("music (5s", engine.Evaluate(decision, cycle, Start.AddSeconds(10), 1).Status);
+        Assert.Contains("quiet", engine.Evaluate(decision, cycle, Start.AddSeconds(15), 1).Status);
+    }
+
     // Pauses the retry countdown while another rule overrides the cycle.
     [Fact]
     public void FailedAttemptsPauseWhenOverriddenAndResumeWithRemainingTime()

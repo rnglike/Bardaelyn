@@ -8,6 +8,7 @@ public sealed class CycleDecision
 {
     public float TargetVolume { get; init; }
     public string Status { get; init; } = "Off";
+    public bool? DefaultCycleQuiet { get; init; }
 }
 
 public sealed class SilenceCycleEngine
@@ -108,6 +109,7 @@ public sealed class SilenceCycleEngine
         return new CycleDecision
         {
             TargetVolume = decision.TargetVolume * (runningCycle.IsQuiet ? runningCycle.Settings.QuietVolume : 1f),
+            DefaultCycleQuiet = ReferenceEquals(runningCycle, globalCycle) ? runningCycle.IsQuiet : null,
             Status = $"{(ReferenceEquals(runningCycle, globalCycle) ? "Global" : "Rule")}: " +
                      $"{runningCycle.PhaseStatus}{playbackStatus}"
         };
@@ -170,8 +172,9 @@ public sealed class SilenceCycleEngine
                 IsQuiet = !IsQuiet;
                 if (!IsQuiet && probabilityMode)
                 {
-                    RemainingSeconds = phaseDuration = Settings.AttemptIntervalSeconds;
-                    immediateAttemptPending = true;
+                    RemainingSeconds = phaseDuration = Settings.MinimumMusicSeconds > 0
+                        ? Settings.MinimumMusicSeconds : Settings.AttemptIntervalSeconds;
+                    immediateAttemptPending = Settings.MinimumMusicSeconds <= 0;
                     CheckImmediateAttempt(musicPlaying, random);
                 }
                 else
@@ -188,9 +191,10 @@ public sealed class SilenceCycleEngine
                 probabilityMode = Settings.UseQuietProbability;
                 if (!IsQuiet)
                 {
-                    immediateAttemptPending = probabilityMode;
+                    immediateAttemptPending = probabilityMode && Settings.MinimumMusicSeconds <= 0;
                     RemainingSeconds = phaseDuration = probabilityMode
-                        ? Settings.AttemptIntervalSeconds : NextDuration(random);
+                        ? Settings.MinimumMusicSeconds > 0 ? Settings.MinimumMusicSeconds : Settings.AttemptIntervalSeconds
+                        : NextDuration(random);
                 }
             }
             if (!probabilityMode) immediateAttemptPending = false;
