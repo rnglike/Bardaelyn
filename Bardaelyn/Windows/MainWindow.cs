@@ -1,9 +1,11 @@
 using System.Numerics;
 using System;
+using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Bardaelyn.Audio;
+using Bardaelyn.Rules;
 
 namespace Bardaelyn.Windows;
 
@@ -30,6 +32,33 @@ public class MainWindow : Window, IDisposable
     public override void Draw()
     {
         ImGui.Text($"Active rule: {plugin.ActiveRuleName}");
+        if (plugin.Configuration.Enabled && plugin.LastState is { HasPlayer: true })
+        {
+            var decision = plugin.LastDecision;
+            var rules = plugin.Configuration.Rules;
+            if (decision.SelectedRule is { } active)
+            {
+                var included = active.Conditions.Count == 0 ? "no included conditions" :
+                    string.Join(active.RequireAll ? " AND " : " OR ", active.Conditions.Select(ConfigWindow.ConditionLabel));
+                var excluded = active.ExcludedConditions.Count == 0 ? "" :
+                    $"; excludes {string.Join(", ", active.ExcludedConditions.Select(ConfigWindow.ConditionLabel))}";
+                ImGui.TextWrapped($"Rule conditions: {included}{excluded}.");
+                if (!RuleEngine.Matches(active, plugin.LastState, plugin.Configuration.TimePeriods))
+                {
+                    ImGui.TextWrapped("The last sampled conditions no longer match; the selected rule may be held by its deactivation delay.");
+                }
+            }
+            var winnerIndex = decision.SelectedRule is null ? rules.Count : rules.IndexOf(decision.SelectedRule);
+            if (winnerIndex < 0) winnerIndex = rules.Count;
+            for (var i = 0; i < winnerIndex; i++)
+            {
+                if (rules[i].Enabled && decision.ActivationRemainingSeconds.TryGetValue(rules[i], out var remaining))
+                {
+                    ImGui.TextWrapped($"{rules[i].Name} can become eligible in {remaining:0.0}s if conditions remain matched.");
+                    break;
+                }
+            }
+        }
         ImGui.Text($"Cycle: {plugin.CycleStatus}");
         ImGui.Text(plugin.MusicSoundCount is { } count
             ? $"Music detection: {count} registered sound(s)"
