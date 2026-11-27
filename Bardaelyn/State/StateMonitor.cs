@@ -13,6 +13,7 @@ public sealed class StateMonitor
     private readonly ITargetManager targetManager;
 
     private readonly MovementTracker movementTracker = new();
+    private readonly IdleTracker idleTracker = new();
 
     public StateMonitor(ICondition condition, IObjectTable objectTable, ITargetManager targetManager)
     {
@@ -47,7 +48,7 @@ public sealed class StateMonitor
         }
 
         var isIdle = player != null && !moved && !isInCombat && !isInDuty && !isInCutscene;
-        var idleForSeconds = isIdle ? movement.IdleForSeconds : 0f;
+        var idleForSeconds = idleTracker.Update(isIdle, now);
 
         return new BgmStateSnapshot
         {

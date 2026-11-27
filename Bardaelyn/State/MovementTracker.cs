@@ -5,6 +5,23 @@ namespace Bardaelyn.State;
 
 public readonly record struct MovementState(bool IsMoving, float IdleForSeconds);
 
+public sealed class IdleTracker
+{
+    private DateTime? idleSince;
+
+    public float Update(bool isIdle, DateTime now)
+    {
+        if (!isIdle)
+        {
+            idleSince = null;
+            return 0f;
+        }
+
+        idleSince ??= now;
+        return Math.Max(0f, (float)(now - idleSince.Value).TotalSeconds);
+    }
+}
+
 public sealed class MovementTracker
 {
     private const float MinimumMovementDistance = 0.04f;

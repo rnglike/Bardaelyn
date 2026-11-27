@@ -30,5 +30,6 @@
     <Compile Include="..\..\Bardaelyn\Rules\RuleConflictAnalyzer.cs" Link="Rules\RuleConflictAnalyzer.cs" />
     <Compile Include="..\..\Bardaelyn\State\BgmStateSnapshot.cs" Link="State\BgmStateSnapshot.cs" />
     <Compile Include="..\..\Bardaelyn\State\MovementTracker.cs" Link="State\MovementTracker.cs" />
+    <Compile Include="..\..\Bardaelyn\State\StateMonitor.cs" Link="State\StateMonitor.cs" />
   </ItemGroup>
 </Project>

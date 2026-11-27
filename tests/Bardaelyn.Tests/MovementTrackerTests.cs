@@ -58,4 +58,31 @@ public sealed class MovementTrackerTests
         Assert.False(state.IsMoving);
         Assert.Equal(0f, state.IdleForSeconds);
     }
+
+    [Fact]
+    public void IdleDurationStartsWhenIdleBeginsAndResetsWhenInterrupted()
+    {
+        var tracker = new IdleTracker();
+
+        Assert.Equal(0f, tracker.Update(false, Start));
+        Assert.Equal(0f, tracker.Update(false, Start.AddSeconds(10)));
+        Assert.Equal(0f, tracker.Update(true, Start.AddSeconds(20)));
+        Assert.Equal(3f, tracker.Update(true, Start.AddSeconds(23)));
+        Assert.Equal(0f, tracker.Update(false, Start.AddSeconds(24)));
+        Assert.Equal(0f, tracker.Update(true, Start.AddSeconds(30)));
+        Assert.Equal(2f, tracker.Update(true, Start.AddSeconds(32)));
+    }
+
+    [Fact]
+    public void IdleDurationStartsAfterMovementGracePeriod()
+    {
+        var movement = new MovementTracker();
+        var idle = new IdleTracker();
+
+        movement.Update(Vector3.Zero, Start);
+        Assert.Equal(0f, idle.Update(!movement.Update(new Vector3(0.1f, 0f, 0f), Start.AddMilliseconds(100)).IsMoving, Start.AddMilliseconds(100)));
+        Assert.Equal(0f, idle.Update(!movement.Update(new Vector3(0.1f, 0f, 0f), Start.AddMilliseconds(700)).IsMoving, Start.AddMilliseconds(700)));
+        Assert.Equal(0f, idle.Update(!movement.Update(new Vector3(0.1f, 0f, 0f), Start.AddMilliseconds(900)).IsMoving, Start.AddMilliseconds(900)));
+        Assert.Equal(1f, idle.Update(!movement.Update(new Vector3(0.1f, 0f, 0f), Start.AddMilliseconds(1900)).IsMoving, Start.AddMilliseconds(1900)));
+    }
 }
