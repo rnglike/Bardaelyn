@@ -60,20 +60,20 @@ public class ConfigWindow : Window, IDisposable
 
         if (ImGui.CollapsingHeader("Advanced timing"))
         {
-        var interval = configuration.UpdateIntervalSeconds;
-        if (Number("State update interval (seconds)", ref interval, 0.05f, 2f, "%.2f"))
-        {
-            configuration.UpdateIntervalSeconds = interval;
-            configuration.Save();
-        }
+            var interval = configuration.UpdateIntervalSeconds;
+            if (Number("State update interval (seconds)", ref interval, 0.05f, 2f, "%.2f"))
+            {
+                configuration.UpdateIntervalSeconds = interval;
+                configuration.Save();
+            }
 
-        var stopDelay = configuration.MusicStopDelaySeconds;
-        if (Number("Estimated music stop detection delay (seconds)", ref stopDelay, 0f, 30f, "%.1f"))
-        {
-            configuration.MusicStopDelaySeconds = stopDelay;
-            configuration.Save();
-        }
-        ImGui.TextWrapped("The estimate corrects detected stops but cannot reverse a phase that has already ended.");
+            var stopDelay = configuration.MusicStopDelaySeconds;
+            if (Number("Estimated music stop detection delay (seconds)", ref stopDelay, 0f, 30f, "%.1f"))
+            {
+                configuration.MusicStopDelaySeconds = stopDelay;
+                configuration.Save();
+            }
+            ImGui.TextWrapped("The estimate corrects detected stops but cannot reverse a phase that has already ended.");
         }
 
         ImGui.Separator();
@@ -322,15 +322,14 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.TextWrapped("Add conditions to include or exclude. Excluded conditions must always be absent.");
-        if (ImGui.BeginTable("conditions", 2, ImGuiTableFlags.Borders | ImGuiTableFlags.SizingStretchSame))
+        if (ImGui.BeginTable("conditions", 2, ImGuiTableFlags.SizingStretchSame))
         {
-            ImGui.TableSetupColumn("Include");
-            ImGui.TableSetupColumn("Exclude");
-            ImGui.TableHeadersRow();
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
+            ImGui.TextUnformatted("Include");
             DrawConditionList("include", rule.Conditions, rule.ExcludedConditions);
             ImGui.TableNextColumn();
+            ImGui.TextUnformatted("Exclude");
             DrawConditionList("exclude", rule.ExcludedConditions, rule.Conditions);
             ImGui.EndTable();
         }
