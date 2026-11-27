@@ -22,6 +22,37 @@ public sealed class AudioControllerTests
         Assert.Equal(0.1f, applied[^1], 4);
     }
 
+    // Completes a partial volume change over the requested duration without restarting on repeated targets.
+    [Fact]
+    public void ExactFadeDurationSurvivesRepeatedTargetUpdates()
+    {
+        var controller = new BgmVolumeController(_ => true);
+        controller.InitializeVolume(0.8f);
+        controller.SetTarget(0.5f, 4f, true);
+        controller.Update(TimeSpan.FromSeconds(1));
+        Assert.Equal(0.7f, controller.CurrentVolume, 4);
+        controller.SetTarget(0.5f, 4f, true);
+        controller.Update(TimeSpan.FromSeconds(2));
+        Assert.Equal(0.5f, controller.CurrentVolume, 4);
+        controller.Update(TimeSpan.FromSeconds(1));
+        Assert.Equal(0.4f, controller.CurrentVolume, 4);
+    }
+
+    // Restarts an exact-duration fade from the current volume when the game baseline changes.
+    [Fact]
+    public void ExactFadeRestartsWhenBaselineChanges()
+    {
+        var controller = new BgmVolumeController(_ => true);
+        controller.InitializeVolume(1f);
+        controller.SetTarget(0.5f, 4f, true);
+        controller.Update(TimeSpan.FromSeconds(2));
+        controller.UpdateBaseline(0.8f);
+        controller.Update(TimeSpan.FromSeconds(2));
+        Assert.Equal(0.575f, controller.CurrentVolume, 4);
+        controller.Update(TimeSpan.FromSeconds(2));
+        Assert.Equal(0.4f, controller.CurrentVolume, 4);
+    }
+
     // Fades back to the updated game setting without a volume jump.
     [Fact]
     public void ReleaseFadesToUpdatedBaselineWithoutJumping()

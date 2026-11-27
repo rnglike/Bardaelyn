@@ -12,6 +12,8 @@ public sealed class BgmVolumeController
     private float originalVolume = 1f;
     private float targetRatio = 1f;
     private float fadeDurationSeconds = 2f;
+    private bool exactFadeDuration;
+    private float fadeRate;
     private bool isControlling;
     private bool isReleasing;
     private readonly IPluginLog? log;
@@ -66,29 +68,27 @@ public sealed class BgmVolumeController
         }
         else
         {
-            targetVolume = isReleasing ? newBaseline : newBaseline * targetRatio;
+            SetFadeTarget(isReleasing ? newBaseline : newBaseline * targetRatio, fadeDurationSeconds, exactFadeDuration);
         }
     }
 
-    public void SetTarget(float volumeRatio, float fadeDurationSeconds)
+    public void SetTarget(float volumeRatio, float fadeDurationSeconds, bool exactDuration = false)
     {
         targetRatio = Math.Clamp(volumeRatio, 0f, 1f);
-        targetVolume = originalVolume * targetRatio;
-        this.fadeDurationSeconds = Math.Max(0f, fadeDurationSeconds);
+        SetFadeTarget(originalVolume * targetRatio, fadeDurationSeconds, exactDuration);
         isControlling = true;
         isReleasing = false;
     }
 
-    public void Release(float fadeDurationSeconds)
+    public void Release(float fadeDurationSeconds, bool exactDuration = false)
     {
         if (!isControlling)
         {
             return;
         }
 
-        targetVolume = originalVolume;
         targetRatio = 1f;
-        this.fadeDurationSeconds = Math.Max(0f, fadeDurationSeconds);
+        SetFadeTarget(originalVolume, fadeDurationSeconds, exactDuration);
         isReleasing = true;
     }
 
@@ -105,7 +105,7 @@ public sealed class BgmVolumeController
         }
         else
         {
-            var maxDelta = elapsed.TotalSeconds / fadeDurationSeconds;
+            var maxDelta = elapsed.TotalSeconds * fadeRate;
             currentVolume = MoveToward(currentVolume, targetVolume, (float)maxDelta);
         }
 
@@ -117,6 +117,19 @@ public sealed class BgmVolumeController
             isControlling = false;
             isReleasing = false;
         }
+    }
+
+    private void SetFadeTarget(float target, float duration, bool exactDuration)
+    {
+        duration = Math.Max(0f, duration);
+        if (target != targetVolume || duration != fadeDurationSeconds || exactDuration != exactFadeDuration || !isControlling)
+        {
+            fadeRate = duration <= 0f ? 0f :
+                (exactDuration ? Math.Abs(target - currentVolume) : 1f) / duration;
+        }
+        targetVolume = target;
+        fadeDurationSeconds = duration;
+        exactFadeDuration = exactDuration;
     }
 
     public void Restore()
