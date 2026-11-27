@@ -98,6 +98,12 @@ public class ConfigWindow : Window, IDisposable
                 ruleIds.Add(rule, nextRuleId++);
             }
             ImGui.PushID($"rule{ruleIds[rule]}");
+            ImGui.Spacing();
+            var panelStart = ImGui.GetCursorScreenPos();
+            var panelWidth = ImGui.GetContentRegionAvail().X;
+            ImGui.BeginGroup();
+            ImGui.Dummy(new Vector2(0f, 4f));
+            ImGui.Indent(8f);
             var moved = false;
             if (position > 0 && ImGui.Button("Up"))
             {
@@ -116,6 +122,7 @@ public class ConfigWindow : Window, IDisposable
             if (moved)
             {
                 configuration.Save();
+                EndRulePanel(panelStart, panelWidth);
                 ImGui.PopID();
                 break;
             }
@@ -131,21 +138,23 @@ public class ConfigWindow : Window, IDisposable
             ImGui.SameLine();
             var title = $"{position + 1}. {rule.Name}{(rule.Enabled ? "" : " (disabled)")}";
             var expanded = ImGui.CollapsingHeader($"{title}###details");
+            ImGui.TextWrapped(RuleStatus(rule));
             if (!expanded)
             {
                 var included = rule.Conditions.Count == 0 ? "none" : string.Join(rule.RequireAll ? " AND " : " OR ", rule.Conditions.Select(ConditionLabel));
                 var excluded = rule.ExcludedConditions.Count == 0 ? "" : $"; exclude {string.Join(", ", rule.ExcludedConditions.Select(ConditionLabel))}";
-                ImGui.TextWrapped($"{included}{excluded}; {rule.TargetVolume * 100f:0.#}% volume; on {rule.ActivateAfterSeconds:0.#}s / off {rule.DeactivateAfterSeconds:0.#}s; {CycleModeLabel(rule)}");
+                var delay = rule.SeparateDelays
+                    ? $"on {rule.ActivateAfterSeconds:0.#}s / off {rule.DeactivateAfterSeconds:0.#}s"
+                    : $"{rule.ActivateAfterSeconds:0.#}s delay";
+                var fade = rule.SeparateFades
+                    ? $"fade in {rule.FadeInSeconds:0.#}s / out {rule.FadeOutSeconds:0.#}s"
+                    : $"{rule.FadeInSeconds:0.#}s fade";
+                ImGui.TextWrapped($"{included}{excluded} | {rule.TargetVolume * 100f:0.#}% volume | {delay} | {fade} | {CycleModeLabel(rule)}");
             }
             var covering = RuleConflictAnalyzer.FindCoveringRule(configuration.Rules, position);
             if (covering is not null)
             {
                 ImGui.TextWrapped($"Priority warning: \"{covering.Name}\" also matches whenever this rule matches. Delays can affect which rule wins.");
-            }
-            if (rule.Enabled && plugin.LastDecision.ActiveRules.Contains(rule) &&
-                plugin.LastDecision.SelectedRule is { } winner && !ReferenceEquals(winner, rule))
-            {
-                ImGui.TextWrapped($"Currently matched but overridden by higher rule \"{winner.Name}\".");
             }
             if (ReferenceEquals(pendingRemoval, rule))
             {
@@ -156,6 +165,7 @@ public class ConfigWindow : Window, IDisposable
                     ruleIds.Remove(rule);
                     pendingRemoval = null;
                     configuration.Save();
+                    EndRulePanel(panelStart, panelWidth);
                     ImGui.PopID();
                     break;
                 }
@@ -169,6 +179,8 @@ public class ConfigWindow : Window, IDisposable
             {
                 DrawRule(rule);
             }
+            EndRulePanel(panelStart, panelWidth);
+            ImGui.Spacing();
             ImGui.PopID();
         }
 
@@ -177,6 +189,30 @@ public class ConfigWindow : Window, IDisposable
             configuration.Rules.Add(new BgmRule { InterruptSilence = true });
             configuration.Save();
         }
+    }
+
+    private static void EndRulePanel(Vector2 start, float width)
+    {
+        ImGui.Unindent(8f);
+        ImGui.Dummy(new Vector2(0f, 4f));
+        ImGui.EndGroup();
+        var bottom = ImGui.GetItemRectMax().Y;
+        ImGui.GetWindowDrawList().AddRect(start, new Vector2(start.X + width, bottom), ImGui.GetColorU32(ImGuiCol.Border));
+    }
+
+    private string RuleStatus(BgmRule rule)
+    {
+        if (!rule.Enabled) return "Status: Disabled";
+        if (!configuration.Enabled) return "Status: BGM control disabled";
+        if (plugin.LastState is not { HasPlayer: true } state) return "Status: Waiting for player state";
+        var decision = plugin.LastDecision;
+        if (ReferenceEquals(decision.SelectedRule, rule))
+            return "Status: Active (last evaluation)";
+        if (decision.ActiveRules.Contains(rule) && decision.SelectedRule is { } winner)
+            return $"Status: Overridden by \"{winner.Name}\" (last evaluation)";
+        if (RuleEngine.Matches(rule, state, configuration.TimePeriods))
+            return "Status: Matching; awaiting evaluation or activation delay";
+        return "Status: Not matching (last sampled state)";
     }
 
     private void DrawProfiles()
@@ -256,13 +292,9 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        var volume = rule.TargetVolume * 100f;
-        if (Number("Volume (% of game setting)", ref volume, 0f, 100f, "%.1f"))
-        {
-            rule.TargetVolume = volume / 100f;
-            configuration.Save();
-        }
-
+        ImGui.Separator();
+        ImGui.TextUnformatted("Conditions");
+        Help("Included conditions match all or any, as selected. Excluded conditions must always be absent. A rule with no conditions never matches.");
         var requireAll = rule.RequireAll;
         if (ImGui.Checkbox("Require all included conditions", ref requireAll))
         {
@@ -270,29 +302,6 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        if (ImGui.BeginCombo("Quiet cycle behavior", CycleModeLabel(rule)))
-        {
-            if (ImGui.Selectable("Ignore quiet cycles", rule.InterruptSilence))
-            {
-                rule.InterruptSilence = true;
-                configuration.Save();
-            }
-            if (ImGui.Selectable("Follow default cycle", !rule.InterruptSilence && !rule.Cycle.Enabled))
-            {
-                rule.InterruptSilence = false;
-                rule.Cycle.Enabled = false;
-                configuration.Save();
-            }
-            if (ImGui.Selectable("Use this rule's cycle", !rule.InterruptSilence && rule.Cycle.Enabled))
-            {
-                rule.InterruptSilence = false;
-                rule.Cycle.Enabled = true;
-                configuration.Save();
-            }
-            ImGui.EndCombo();
-        }
-
-        ImGui.TextWrapped("Add conditions to include or exclude. Excluded conditions must always be absent.");
         if (ImGui.BeginTable("conditions", 2, ImGuiTableFlags.SizingStretchSame))
         {
             ImGui.TableNextRow();
@@ -303,6 +312,10 @@ public class ConfigWindow : Window, IDisposable
             ImGui.TextUnformatted("Exclude");
             DrawConditionList("exclude", rule.ExcludedConditions, rule.Conditions);
             ImGui.EndTable();
+        }
+        if (rule.Conditions.Count == 0 && rule.ExcludedConditions.Count == 0)
+        {
+            ImGui.TextWrapped("Add at least one condition; an empty rule never matches.");
         }
 
         if (rule.Conditions.Contains(RuleCondition.LowHp) || rule.ExcludedConditions.Contains(RuleCondition.LowHp))
@@ -330,7 +343,43 @@ public class ConfigWindow : Window, IDisposable
             }
         }
 
+        ImGui.Separator();
+        ImGui.TextUnformatted("Volume");
+        var volume = rule.TargetVolume * 100f;
+        if (Number("Volume (% of game setting)", ref volume, 0f, 100f, "%.1f"))
+        {
+            rule.TargetVolume = volume / 100f;
+            configuration.Save();
+        }
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("Timing");
         DrawRuleTiming(rule);
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("Quiet cycle");
+        Help("Ignoring cycles pauses the default cycle while this rule wins. A custom cycle also pauses the default cycle.");
+        if (ImGui.BeginCombo("Quiet cycle behavior", CycleModeLabel(rule)))
+        {
+            if (ImGui.Selectable("Ignore quiet cycles", rule.InterruptSilence))
+            {
+                rule.InterruptSilence = true;
+                configuration.Save();
+            }
+            if (ImGui.Selectable("Follow default cycle", !rule.InterruptSilence && !rule.Cycle.Enabled))
+            {
+                rule.InterruptSilence = false;
+                rule.Cycle.Enabled = false;
+                configuration.Save();
+            }
+            if (ImGui.Selectable("Use a custom cycle", !rule.InterruptSilence && rule.Cycle.Enabled))
+            {
+                rule.InterruptSilence = false;
+                rule.Cycle.Enabled = true;
+                configuration.Save();
+            }
+            ImGui.EndCombo();
+        }
 
         if (!rule.InterruptSilence && rule.Cycle.Enabled)
         {
@@ -346,7 +395,8 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawRuleTiming(BgmRule rule)
     {
-        ImGui.TextWrapped("Activation delay: how long conditions must match before this rule can take effect. Deactivation delay: how long the selected rule stays active after it stops matching; a higher-priority rule can take over.");
+        ImGui.TextUnformatted("Activation and deactivation");
+        Help("Activation delay is how long conditions must match before the rule can take effect. Deactivation delay keeps the selected rule active after it stops matching; a higher-priority rule can take over. When combining separate delays, the activation value is used for both.");
         var separateDelays = rule.SeparateDelays;
         if (ImGui.Checkbox("Separate activation and deactivation delays", ref separateDelays))
         {
@@ -377,7 +427,8 @@ public class ConfigWindow : Window, IDisposable
             }
         }
 
-        ImGui.TextWrapped("Fades control how gradually volume changes after a rule takes effect. Fade durations describe a full-scale volume change; smaller changes finish sooner.");
+        ImGui.TextUnformatted("Fades");
+        Help("Fades control the speed of volume changes. Durations describe a full-scale change, so smaller changes finish sooner. On a rule change, a nonzero incoming fade-in takes priority; otherwise the outgoing fade-out is used. When combining separate fades, the fade-in value is used for both.");
         var separateFades = rule.SeparateFades;
         if (ImGui.Checkbox("Separate fade in and fade out", ref separateFades))
         {
@@ -407,7 +458,6 @@ public class ConfigWindow : Window, IDisposable
                 configuration.Save();
             }
         }
-        ImGui.TextWrapped("When combining separate controls, the activation or fade-in value is used for both directions.");
     }
 
     private void DrawConditionList(string id, List<RuleCondition> selected, List<RuleCondition> opposite)
@@ -428,6 +478,10 @@ public class ConfigWindow : Window, IDisposable
             ImGui.EndCombo();
         }
 
+        if (selected.Count == 0)
+        {
+            ImGui.TextDisabled("No conditions added");
+        }
         foreach (var condition in selected.ToArray())
         {
             ImGui.PushID(condition.ToString());
@@ -461,7 +515,21 @@ public class ConfigWindow : Window, IDisposable
 
     private static string CycleModeLabel(BgmRule rule) =>
         rule.InterruptSilence ? "Ignore quiet cycles" :
-        rule.Cycle.Enabled ? "Use this rule's cycle" : "Follow default cycle";
+        rule.Cycle.Enabled ? "Use a custom cycle" : "Follow default cycle";
+
+    private static void Help(string text)
+    {
+        ImGui.SameLine();
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35f);
+            ImGui.TextUnformatted(text);
+            ImGui.PopTextWrapPos();
+            ImGui.EndTooltip();
+        }
+    }
 
     private static bool DrawCycleSettings(CycleSettings cycle, bool showEnable = true)
     {
@@ -477,6 +545,15 @@ public class ConfigWindow : Window, IDisposable
             return changed;
         }
 
+        var random = cycle.RandomDurations;
+        if (ImGui.Checkbox("Randomize durations", ref random))
+        {
+            cycle.RandomDurations = random;
+            changed = true;
+        }
+        Help("Randomizes quiet duration and, in interval mode, music duration.");
+
+        ImGui.TextUnformatted("Music phase");
         var probabilityMode = cycle.UseQuietProbability;
         if (ImGui.Checkbox("Use probability instead of music intervals", ref probabilityMode))
         {
@@ -497,45 +574,10 @@ public class ConfigWindow : Window, IDisposable
                 cycle.AttemptIntervalSeconds = attemptInterval;
                 changed = true;
             }
-            ImGui.TextWrapped("The first attempt occurs when music begins; later attempts use detected music time.");
+            ImGui.TextUnformatted("Probability attempts");
+            Help("The first attempt occurs when music begins; later attempts use detected music time.");
         }
-
-        var countNaturalGap = cycle.StartQuietOnNaturalGap;
-        if (ImGui.Checkbox("Start quiet period when the game goes quiet", ref countNaturalGap))
-        {
-            cycle.StartQuietOnNaturalGap = countNaturalGap;
-            changed = true;
-        }
-        ImGui.TextWrapped("Off: keep quiet periods separate. Music time pauses while no music is detected.");
-
-        var quietVolume = cycle.QuietVolume * 100f;
-        if (Number("Quiet volume (% of active volume)", ref quietVolume, 0f, 100f, "%.1f"))
-        {
-            cycle.QuietVolume = quietVolume / 100f;
-            changed = true;
-        }
-        var random = cycle.RandomDurations;
-        if (ImGui.Checkbox("Randomize durations", ref random))
-        {
-            cycle.RandomDurations = random;
-            changed = true;
-        }
-        var quietMin = cycle.QuietMinSeconds;
-        if (Number(random ? "Quiet minimum (seconds)" : "Quiet duration (seconds)", ref quietMin, 1f, 3600f, "%.1f"))
-        {
-            cycle.QuietMinSeconds = quietMin;
-            changed = true;
-        }
-        if (random)
-        {
-            var quietMax = cycle.QuietMaxSeconds;
-            if (Number("Quiet maximum (seconds)", ref quietMax, 1f, 3600f, "%.1f"))
-            {
-                cycle.QuietMaxSeconds = quietMax;
-                changed = true;
-            }
-        }
-        if (!probabilityMode)
+        else
         {
             var musicMin = cycle.MusicMinSeconds;
             if (Number(random ? "Music minimum (seconds)" : "Music duration (seconds)", ref musicMin, 1f, 3600f, "%.1f"))
@@ -551,6 +593,38 @@ public class ConfigWindow : Window, IDisposable
                     cycle.MusicMaxSeconds = musicMax;
                     changed = true;
                 }
+            }
+        }
+
+        var countNaturalGap = cycle.StartQuietOnNaturalGap;
+        if (ImGui.Checkbox("Start quiet period when the game goes quiet", ref countNaturalGap))
+        {
+            cycle.StartQuietOnNaturalGap = countNaturalGap;
+            changed = true;
+        }
+        ImGui.TextUnformatted("Natural gaps");
+        Help("When off, natural gaps stay separate from quiet periods. Music time pauses while no music is detected.");
+
+        ImGui.TextUnformatted("Quiet phase");
+        var quietVolume = cycle.QuietVolume * 100f;
+        if (Number("Quiet volume (% of active volume)", ref quietVolume, 0f, 100f, "%.1f"))
+        {
+            cycle.QuietVolume = quietVolume / 100f;
+            changed = true;
+        }
+        var quietMin = cycle.QuietMinSeconds;
+        if (Number(random ? "Quiet minimum (seconds)" : "Quiet duration (seconds)", ref quietMin, 1f, 3600f, "%.1f"))
+        {
+            cycle.QuietMinSeconds = quietMin;
+            changed = true;
+        }
+        if (random)
+        {
+            var quietMax = cycle.QuietMaxSeconds;
+            if (Number("Quiet maximum (seconds)", ref quietMax, 1f, 3600f, "%.1f"))
+            {
+                cycle.QuietMaxSeconds = quietMax;
+                changed = true;
             }
         }
         return changed;
