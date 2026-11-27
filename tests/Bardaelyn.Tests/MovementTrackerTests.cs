@@ -1,5 +1,5 @@
 using System.Numerics;
-using SamplePlugin.State;
+using Bardaelyn.State;
 using Xunit;
 
 namespace Bardaelyn.Tests;

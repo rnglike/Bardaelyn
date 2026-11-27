@@ -3,7 +3,7 @@ using Dalamud.Game.Config;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Sound;
 
-namespace SamplePlugin.Audio;
+namespace Bardaelyn.Audio;
 
 public sealed class BgmVolumeController
 {

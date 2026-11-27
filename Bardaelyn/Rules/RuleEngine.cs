@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SamplePlugin.State;
+using Bardaelyn.State;
 
-namespace SamplePlugin.Rules;
+namespace Bardaelyn.Rules;
 
 public sealed class RuleDecision
 {

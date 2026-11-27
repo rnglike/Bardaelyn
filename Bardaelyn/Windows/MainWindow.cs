@@ -3,16 +3,16 @@ using System;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using SamplePlugin.Audio;
+using Bardaelyn.Audio;
 
-namespace SamplePlugin.Windows;
+namespace Bardaelyn.Windows;
 
 public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
     public MainWindow(Plugin plugin)
-        : base("BGM Controller##BgmController")
+        : base("Bardaelyn##BgmController")
     {
         SizeConstraints = new WindowSizeConstraints
         {

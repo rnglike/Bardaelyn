@@ -1,6 +1,6 @@
-using SamplePlugin.Rules;
-using SamplePlugin.State;
-using SamplePlugin;
+using Bardaelyn.Rules;
+using Bardaelyn.State;
+using Bardaelyn;
 using Xunit;
 
 namespace Bardaelyn.Tests;

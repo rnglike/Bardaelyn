@@ -18,17 +18,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\SamplePlugin\Configuration.cs" Link="Configuration.cs" />
-    <Compile Include="..\..\SamplePlugin\SettingsProfile.cs" Link="SettingsProfile.cs" />
-    <Compile Include="..\..\SamplePlugin\Audio\BgmVolumeController.cs" Link="Audio\BgmVolumeController.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\BgmRule.cs" Link="Rules\BgmRule.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\CycleSettings.cs" Link="Rules\CycleSettings.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\EorzeaPeriods.cs" Link="Rules\EorzeaPeriods.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\FadeSelector.cs" Link="Rules\FadeSelector.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\SilenceCycleEngine.cs" Link="Rules\SilenceCycleEngine.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\RuleEngine.cs" Link="Rules\RuleEngine.cs" />
-    <Compile Include="..\..\SamplePlugin\Rules\RuleConflictAnalyzer.cs" Link="Rules\RuleConflictAnalyzer.cs" />
-    <Compile Include="..\..\SamplePlugin\State\BgmStateSnapshot.cs" Link="State\BgmStateSnapshot.cs" />
-    <Compile Include="..\..\SamplePlugin\State\MovementTracker.cs" Link="State\MovementTracker.cs" />
+    <Compile Include="..\..\Bardaelyn\Configuration.cs" Link="Configuration.cs" />
+    <Compile Include="..\..\Bardaelyn\SettingsProfile.cs" Link="SettingsProfile.cs" />
+    <Compile Include="..\..\Bardaelyn\Audio\BgmVolumeController.cs" Link="Audio\BgmVolumeController.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\BgmRule.cs" Link="Rules\BgmRule.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\CycleSettings.cs" Link="Rules\CycleSettings.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\EorzeaPeriods.cs" Link="Rules\EorzeaPeriods.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\FadeSelector.cs" Link="Rules\FadeSelector.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\SilenceCycleEngine.cs" Link="Rules\SilenceCycleEngine.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\RuleEngine.cs" Link="Rules\RuleEngine.cs" />
+    <Compile Include="..\..\Bardaelyn\Rules\RuleConflictAnalyzer.cs" Link="Rules\RuleConflictAnalyzer.cs" />
+    <Compile Include="..\..\Bardaelyn\State\BgmStateSnapshot.cs" Link="State\BgmStateSnapshot.cs" />
+    <Compile Include="..\..\Bardaelyn\State\MovementTracker.cs" Link="State\MovementTracker.cs" />
   </ItemGroup>
 </Project>

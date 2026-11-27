@@ -2,7 +2,7 @@ using System;
 using FFXIVClientStructs.FFXIV.Client.Sound;
 using FFXIVClientStructs.SQEX.CDev.Engine.Sd.Driver;
 
-namespace SamplePlugin.Audio;
+namespace Bardaelyn.Audio;
 
 public static class MusicBusReader
 {

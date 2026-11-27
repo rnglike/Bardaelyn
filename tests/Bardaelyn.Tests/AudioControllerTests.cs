@@ -1,4 +1,4 @@
-using SamplePlugin.Audio;
+using Bardaelyn.Audio;
 using Xunit;
 
 namespace Bardaelyn.Tests;

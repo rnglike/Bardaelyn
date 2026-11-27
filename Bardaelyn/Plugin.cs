@@ -5,12 +5,12 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
-using SamplePlugin.Windows;
-using SamplePlugin.Audio;
-using SamplePlugin.Rules;
-using SamplePlugin.State;
+using Bardaelyn.Windows;
+using Bardaelyn.Audio;
+using Bardaelyn.Rules;
+using Bardaelyn.State;
 
-namespace SamplePlugin;
+namespace Bardaelyn;
 
 public sealed class Plugin : IDalamudPlugin
 {
@@ -75,7 +75,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "A useful message to display in /xlhelp"
+            HelpMessage = "Toggle the Bardaelyn window."
         });
 
         // Tell the UI system that we want our windows to be drawn through the window system
@@ -92,8 +92,8 @@ public sealed class Plugin : IDalamudPlugin
 
         // Add a simple message to the log with level set to information
         // Use /xllog to open the log window in-game
-        // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
-        Log.Information($"===A cool log message from {PluginInterface.Manifest.Name}===");
+        // Example Output: 00:57:54.959 | INF | [Bardaelyn] Bardaelyn loaded.
+        Log.Information("Bardaelyn loaded.");
     }
 
     public void Dispose()

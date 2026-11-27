@@ -2,9 +2,9 @@ using System;
 using System.Numerics;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Plugin.Services;
-using SamplePlugin.Rules;
+using Bardaelyn.Rules;
 
-namespace SamplePlugin.State;
+namespace Bardaelyn.State;
 
 public sealed class StateMonitor
 {

@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace SamplePlugin.State;
+namespace Bardaelyn.State;
 
 public readonly record struct MovementState(bool IsMoving, float IdleForSeconds);
 

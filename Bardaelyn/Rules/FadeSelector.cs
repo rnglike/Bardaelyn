@@ -1,6 +1,6 @@
 using System;
 
-namespace SamplePlugin.Rules;
+namespace Bardaelyn.Rules;
 
 public sealed class FadeSelector
 {

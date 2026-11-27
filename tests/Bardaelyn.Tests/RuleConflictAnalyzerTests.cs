@@ -1,4 +1,4 @@
-using SamplePlugin.Rules;
+using Bardaelyn.Rules;
 using Xunit;
 
 namespace Bardaelyn.Tests;

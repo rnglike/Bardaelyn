@@ -1,5 +1,5 @@
-using SamplePlugin;
-using SamplePlugin.Rules;
+using Bardaelyn;
+using Bardaelyn.Rules;
 using Xunit;
 
 namespace Bardaelyn.Tests;

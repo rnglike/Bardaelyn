@@ -1,7 +1,7 @@
 using System.Text.Json;
-using SamplePlugin;
-using SamplePlugin.Rules;
-using SamplePlugin.State;
+using Bardaelyn;
+using Bardaelyn.Rules;
+using Bardaelyn.State;
 using Xunit;
 
 namespace Bardaelyn.Tests;

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SamplePlugin.Rules;
+namespace Bardaelyn.Rules;
 
 [Serializable]
 public enum RuleCondition

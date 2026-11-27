@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace SamplePlugin.State;
+namespace Bardaelyn.State;
 
 public sealed class BgmStateSnapshot
 {

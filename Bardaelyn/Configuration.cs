@@ -2,9 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SamplePlugin.Rules;
+using Bardaelyn.Rules;
 
-namespace SamplePlugin;
+namespace Bardaelyn;
 
 [Serializable]
 public class Configuration : IPluginConfiguration

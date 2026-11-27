@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SamplePlugin.Rules;
+namespace Bardaelyn.Rules;
 
 public sealed class CycleDecision
 {

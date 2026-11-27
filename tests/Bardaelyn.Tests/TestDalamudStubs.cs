@@ -33,7 +33,7 @@ namespace FFXIVClientStructs.FFXIV.Client.Sound
     }
 }
 
-namespace SamplePlugin
+namespace Bardaelyn
 {
     public static class Plugin
     {

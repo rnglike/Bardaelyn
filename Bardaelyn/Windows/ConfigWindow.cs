@@ -4,9 +4,9 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
-using SamplePlugin.Rules;
+using Bardaelyn.Rules;
 
-namespace SamplePlugin.Windows;
+namespace Bardaelyn.Windows;
 
 public class ConfigWindow : Window, IDisposable
 {
@@ -19,7 +19,7 @@ public class ConfigWindow : Window, IDisposable
     private string? pendingProfile;
     private string? profileError;
 
-    public ConfigWindow(Plugin plugin) : base("BGM Controller Settings###BgmControllerSettings")
+    public ConfigWindow(Plugin plugin) : base("Bardaelyn Settings###BgmControllerSettings")
     {
         Size = new Vector2(700, 700);
         SizeCondition = ImGuiCond.FirstUseEver;

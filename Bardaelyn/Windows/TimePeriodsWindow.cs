@@ -2,9 +2,9 @@ using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
-using SamplePlugin.Rules;
+using Bardaelyn.Rules;
 
-namespace SamplePlugin.Windows;
+namespace Bardaelyn.Windows;
 
 public sealed class TimePeriodsWindow : Window, IDisposable
 {
