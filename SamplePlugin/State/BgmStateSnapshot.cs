@@ -13,5 +13,6 @@ public sealed class BgmStateSnapshot
     public bool IsInCutscene { get; init; }
     public bool HasTarget { get; init; }
     public float HpPercent { get; init; }
+    public float IdleForSeconds { get; init; }
     public Vector3 Position { get; init; }
 }

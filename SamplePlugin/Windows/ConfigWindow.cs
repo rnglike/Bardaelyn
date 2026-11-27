@@ -2,6 +2,7 @@
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using SamplePlugin.Rules;
 
 namespace SamplePlugin.Windows;
 
@@ -31,7 +32,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         var defaultVolume = configuration.DefaultVolume * 100f;
-        if (ImGui.SliderFloat("Default volume", ref defaultVolume, 0f, 100f))
+        if (ImGui.SliderFloat("Default volume (% of game setting)", ref defaultVolume, 0f, 100f))
         {
             configuration.DefaultVolume = defaultVolume / 100f;
             configuration.Save();
@@ -61,7 +62,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         var lowHpVolume = configuration.LowHpVolume * 100f;
-        if (ImGui.SliderFloat("Low HP volume", ref lowHpVolume, 0f, 100f))
+        if (ImGui.SliderFloat("Low HP volume (% of game setting)", ref lowHpVolume, 0f, 100f))
         {
             configuration.LowHpVolume = lowHpVolume / 100f;
             configuration.Save();
@@ -111,7 +112,7 @@ public class ConfigWindow : Window, IDisposable
             }
 
             var volume = rule.TargetVolume * 100f;
-            if (ImGui.SliderFloat("Rule volume", ref volume, 0f, 100f))
+            if (ImGui.SliderFloat("Rule volume (% of game setting)", ref volume, 0f, 100f))
             {
                 rule.TargetVolume = volume / 100f;
                 configuration.Save();

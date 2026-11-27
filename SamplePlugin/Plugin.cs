@@ -40,14 +40,20 @@ public sealed class Plugin : IDalamudPlugin
     public BgmStateSnapshot? LastState { get; private set; }
     public RuleDecision LastDecision => RuleEngine.LastDecision;
     public float CurrentBgmVolume => VolumeController.CurrentVolume;
+    public float TargetBgmVolume => VolumeController.TargetVolume;
+    public string ActiveRuleName => Configuration.Enabled
+        ? LastDecision.RuleName
+        : "Disabled";
 
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Configuration.Normalize();
+        Configuration.Save();
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
         StateMonitor = new StateMonitor(Condition, ObjectTable, TargetManager);
-        RuleEngine = new RuleEngine(Configuration);
+        RuleEngine = new RuleEngine(() => Configuration.GetRuleSettings());
         VolumeController = new BgmVolumeController(Log);
         if (!VolumeController.Initialize(GameConfig))
         {

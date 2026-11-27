@@ -11,8 +11,7 @@ public sealed class StateMonitor
     private readonly IObjectTable objectTable;
     private readonly ITargetManager targetManager;
 
-    private Vector3 lastPosition;
-    private DateTime lastPositionTime;
+    private readonly MovementTracker movementTracker = new();
 
     public StateMonitor(ICondition condition, IObjectTable objectTable, ITargetManager targetManager)
     {
@@ -25,18 +24,11 @@ public sealed class StateMonitor
     {
         var player = objectTable.LocalPlayer;
         var position = player?.Position ?? Vector3.Zero;
+        var movement = movementTracker.Update(player?.Position, now);
+        var moved = movement.IsMoving;
 
-        var moved = lastPositionTime != default &&
-                    Vector3.DistanceSquared(lastPosition, position) > 0.0025f &&
-                    now - lastPositionTime >= TimeSpan.FromMilliseconds(100);
-
-        if (now - lastPositionTime >= TimeSpan.FromMilliseconds(100))
-        {
-            lastPosition = position;
-            lastPositionTime = now;
-        }
-
-        var isMounted = condition[ConditionFlag.Mounted] || condition[ConditionFlag.RidingPillion];
+        var isMounted = player != null &&
+                        (condition[ConditionFlag.Mounted] || condition[ConditionFlag.RidingPillion]);
         var isInCombat = condition[ConditionFlag.InCombat];
         var isInDuty = condition[ConditionFlag.BoundByDuty] ||
                        condition[ConditionFlag.BoundByDuty56] ||
@@ -54,6 +46,7 @@ public sealed class StateMonitor
         }
 
         var isIdle = player != null && !moved && !isInCombat && !isInDuty && !isInCutscene;
+        var idleForSeconds = isIdle ? movement.IdleForSeconds : 0f;
 
         return new BgmStateSnapshot
         {
@@ -66,6 +59,7 @@ public sealed class StateMonitor
             IsInCutscene = isInCutscene,
             HasTarget = targetManager.Target != null,
             HpPercent = hpPercent,
+            IdleForSeconds = idleForSeconds,
             Position = position
         };
     }

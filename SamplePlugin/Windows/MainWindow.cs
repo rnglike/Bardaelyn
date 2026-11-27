@@ -1,7 +1,6 @@
 using System.Numerics;
 using System;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 
 namespace SamplePlugin.Windows;
@@ -10,9 +9,6 @@ public class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
-    // We give this window a hidden ID using ##.
-    // The user will see "My Amazing Window" as window title,
-    // but for ImGui the ID is "My Amazing Window##With a hidden ID"
     public MainWindow(Plugin plugin)
         : base("BGM Controller##BgmController", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
@@ -29,8 +25,8 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.Text($"Active rule: {plugin.LastDecision.RuleName}");
-        ImGui.Text($"Target BGM: {plugin.LastDecision.TargetVolume * 100f:0}%");
+        ImGui.Text($"Active rule: {plugin.ActiveRuleName}");
+        ImGui.Text($"Target BGM: {plugin.TargetBgmVolume * 100f:0}%");
         ImGui.Text($"Current BGM: {plugin.CurrentBgmVolume * 100f:0}%");
 
         var state = plugin.LastState;
@@ -40,9 +36,11 @@ public class MainWindow : Window, IDisposable
             return;
         }
 
+        ImGui.Text($"Player loaded: {state.HasPlayer}");
         ImGui.Text($"Mounted: {state.IsMounted}");
         ImGui.Text($"Moving: {state.IsMoving}");
         ImGui.Text($"Idle: {state.IsIdle}");
+        ImGui.Text($"Idle for: {state.IdleForSeconds:0.0}s");
         ImGui.Text($"Combat: {state.IsInCombat}");
         ImGui.Text($"Duty: {state.IsInDuty}");
         ImGui.Text($"Cutscene: {state.IsInCutscene}");

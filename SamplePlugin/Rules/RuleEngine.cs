@@ -13,7 +13,7 @@ public sealed class RuleDecision
 
 public sealed class RuleEngine
 {
-    private readonly Configuration configuration;
+    private readonly Func<RuleSettings> getSettings;
     private readonly Dictionary<BgmRule, RuleTiming> timings = [];
 
     public RuleDecision LastDecision { get; private set; } = new()
@@ -22,19 +22,29 @@ public sealed class RuleEngine
         RuleName = "Default"
     };
 
-    public RuleEngine(Configuration configuration)
+    public RuleEngine(Func<RuleSettings> getSettings)
     {
-        this.configuration = configuration;
+        this.getSettings = getSettings;
+        var settings = getSettings();
         LastDecision = new RuleDecision
         {
-            TargetVolume = configuration.DefaultVolume,
+            TargetVolume = ClampFinite(settings.DefaultVolume, 1f),
             RuleName = "Default"
         };
     }
 
     public RuleDecision Evaluate(BgmStateSnapshot state, DateTime now)
     {
-        foreach (var rule in configuration.Rules)
+        var settings = getSettings();
+        var activeRules = new HashSet<BgmRule>(settings.Rules);
+        foreach (var staleRule in timings.Keys.Where(rule => !activeRules.Contains(rule)).ToArray())
+        {
+            timings.Remove(staleRule);
+        }
+
+        var defaultVolume = ClampFinite(settings.DefaultVolume, 1f);
+        var lowHpThreshold = ClampPercent(settings.LowHpThresholdPercent, 30f);
+        foreach (var rule in settings.Rules)
         {
             if (!timings.TryGetValue(rule, out var timing))
             {
@@ -43,7 +53,7 @@ public sealed class RuleEngine
             }
 
             var rawMatch = rule.Enabled &&
-                           Matches(rule, state, configuration.LowHpThresholdPercent);
+                           Matches(rule, state, lowHpThreshold);
 
             if (rawMatch)
             {
@@ -58,7 +68,7 @@ public sealed class RuleEngine
         }
 
         BgmRule? selected = null;
-        foreach (var rule in configuration.Rules
+        foreach (var rule in settings.Rules
                      .Where(rule => rule.Enabled)
                      .OrderByDescending(rule => rule.Priority))
         {
@@ -69,7 +79,7 @@ public sealed class RuleEngine
 
             if (timing.MatchSince is not null)
             {
-                var requiredSeconds = rule.ActivateAfterSeconds;
+                var requiredSeconds = ClampSeconds(rule.ActivateAfterSeconds);
                 if (now - timing.MatchSince.Value >= TimeSpan.FromSeconds(requiredSeconds))
                 {
                     selected = rule;
@@ -78,49 +88,62 @@ public sealed class RuleEngine
             }
             else if (timing.LastSelected &&
                      timing.NoMatchSince is not null &&
-                     now - timing.NoMatchSince.Value <=
-                     TimeSpan.FromSeconds(rule.DeactivateAfterSeconds))
+                     now - timing.NoMatchSince.Value <
+                     TimeSpan.FromSeconds(ClampSeconds(rule.DeactivateAfterSeconds)))
             {
                 selected = rule;
                 break;
             }
         }
 
-        if (configuration.LowHpRuleEnabled &&
-            state.HpPercent <= configuration.LowHpThresholdPercent)
+        if (settings.LowHpRuleEnabled &&
+            state.HpPercent <= lowHpThreshold)
         {
-            selected = configuration.LowHpPriority >= (selected?.Priority ?? int.MinValue)
+            selected = settings.LowHpPriority >= (selected?.Priority ?? int.MinValue)
                 ? new BgmRule
                 {
                     Name = "Low HP",
-                    Priority = configuration.LowHpPriority,
-                    TargetVolume = configuration.LowHpVolume
+                    Priority = settings.LowHpPriority,
+                    TargetVolume = ClampFinite(settings.LowHpVolume, 1f)
                 }
                 : selected;
         }
 
-        foreach (var rule in configuration.Rules)
+        foreach (var rule in settings.Rules)
         {
             if (timings.TryGetValue(rule, out var timing))
             {
-                timing.LastSelected = selected?.Name == rule.Name;
+                timing.LastSelected = ReferenceEquals(selected, rule);
             }
         }
 
         LastDecision = selected is null
             ? new RuleDecision
             {
-                TargetVolume = configuration.DefaultVolume,
+                TargetVolume = defaultVolume,
                 RuleName = "Default"
             }
             : new RuleDecision
             {
-                TargetVolume = Math.Clamp(selected.TargetVolume, 0f, 1f),
+                TargetVolume = ClampFinite(selected.TargetVolume, defaultVolume),
                 RuleName = selected.Name
             };
 
         return LastDecision;
     }
+
+    private static float ClampFinite(float value, float fallback) =>
+        float.IsFinite(value)
+            ? Math.Clamp(value, 0f, 1f)
+            : float.IsFinite(fallback) ? Math.Clamp(fallback, 0f, 1f) : 1f;
+
+    private static float ClampPercent(float value, float fallback) =>
+        float.IsFinite(value)
+            ? Math.Clamp(value, 0f, 100f)
+            : fallback;
+
+    private static double ClampSeconds(float value) =>
+        float.IsFinite(value) ? Math.Clamp(value, 0f, 3600f) : 0f;
 
     private static bool Matches(BgmRule rule, BgmStateSnapshot state, float lowHpThreshold)
     {

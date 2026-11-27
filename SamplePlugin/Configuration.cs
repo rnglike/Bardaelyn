@@ -1,6 +1,8 @@
 ﻿using Dalamud.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using SamplePlugin.Rules;
 
 namespace SamplePlugin;
 
@@ -53,32 +55,61 @@ public class Configuration : IPluginConfiguration
 
     public void Save()
     {
+        Normalize();
         Plugin.PluginInterface.SavePluginConfig(this);
     }
-}
 
-[Serializable]
-public enum RuleCondition
-{
-    Mounted,
-    Moving,
-    Idle,
-    InCombat,
-    InDuty,
-    InCutscene,
-    HasTarget,
-    LowHp
-}
+    public void Normalize()
+    {
+        Version = Math.Max(1, Version);
+        DefaultVolume = ClampFinite(DefaultVolume, 1f, 0f, 1f);
+        FadeDurationSeconds = ClampFinite(FadeDurationSeconds, 2f, 0f, 60f);
+        UpdateIntervalSeconds = ClampFinite(UpdateIntervalSeconds, 0.25f, 0.05f, 2f);
+        LowHpThresholdPercent = ClampFinite(LowHpThresholdPercent, 30f, 1f, 100f);
+        LowHpVolume = ClampFinite(LowHpVolume, 1f, 0f, 1f);
+        LowHpPriority = Math.Clamp(LowHpPriority, -100000, 100000);
+        Rules ??= [];
 
-[Serializable]
-public sealed class BgmRule
-{
-    public string Name { get; set; } = "New rule";
-    public bool Enabled { get; set; } = true;
-    public int Priority { get; set; } = 50;
-    public float TargetVolume { get; set; } = 0.5f;
-    public float ActivateAfterSeconds { get; set; }
-    public float DeactivateAfterSeconds { get; set; } = 3f;
-    public bool RequireAll { get; set; } = true;
-    public List<RuleCondition> Conditions { get; set; } = [];
+        for (var index = Rules.Count - 1; index >= 0; index--)
+        {
+            var rule = Rules[index];
+            if (rule is null)
+            {
+                Rules.RemoveAt(index);
+                continue;
+            }
+
+            rule.Name = string.IsNullOrWhiteSpace(rule.Name)
+                ? $"Rule {index + 1}"
+                : rule.Name.Trim();
+            if (rule.Name.Length > 64)
+            {
+                rule.Name = rule.Name[..64];
+            }
+
+            rule.TargetVolume = ClampFinite(rule.TargetVolume, 0.5f, 0f, 1f);
+            rule.ActivateAfterSeconds = ClampFinite(rule.ActivateAfterSeconds, 0f, 0f, 3600f);
+            rule.DeactivateAfterSeconds = ClampFinite(rule.DeactivateAfterSeconds, 3f, 0f, 3600f);
+            rule.Priority = Math.Clamp(rule.Priority, -100000, 100000);
+            rule.Conditions ??= [];
+            var validConditions = rule.Conditions
+                .Where(condition => Enum.IsDefined(condition))
+                .Distinct()
+                .ToList();
+            rule.Conditions = validConditions;
+        }
+    }
+
+    public RuleSettings GetRuleSettings() => new()
+    {
+        DefaultVolume = DefaultVolume,
+        LowHpThresholdPercent = LowHpThresholdPercent,
+        LowHpRuleEnabled = LowHpRuleEnabled,
+        LowHpVolume = LowHpVolume,
+        LowHpPriority = LowHpPriority,
+        Rules = Rules
+    };
+
+    private static float ClampFinite(float value, float fallback, float minimum, float maximum) =>
+        float.IsFinite(value) ? Math.Clamp(value, minimum, maximum) : fallback;
 }
