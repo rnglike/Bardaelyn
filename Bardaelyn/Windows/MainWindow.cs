@@ -37,6 +37,34 @@ public class MainWindow : Window, IDisposable
         ImGui.Text($"Target BGM: {plugin.TargetBgmVolume * 100f:0}%");
         ImGui.Text($"Current BGM: {plugin.CurrentBgmVolume * 100f:0}%");
 
+        if (ImGui.Button("Open Settings"))
+        {
+            plugin.ToggleConfigUi();
+        }
+
+        if (ImGui.CollapsingHeader("Player state"))
+        {
+            var state = plugin.LastState;
+            if (state == null)
+            {
+                ImGui.TextUnformatted("Waiting for state sample...");
+            }
+            else
+            {
+                ImGui.Text($"Player loaded: {state.HasPlayer}");
+                ImGui.Text($"Mounted: {state.IsMounted}");
+                ImGui.Text($"Swimming: {state.IsSwimming}");
+                ImGui.Text($"Underwater: {state.IsUnderwater}");
+                ImGui.Text($"Moving: {state.IsMoving}");
+                ImGui.Text($"Idle: {state.IsIdle}");
+                ImGui.Text($"Idle for: {state.IdleForSeconds:0.0}s");
+                ImGui.Text($"Combat: {state.IsInCombat}");
+                ImGui.Text($"Duty: {state.IsInDuty}");
+                ImGui.Text($"Cutscene: {state.IsInCutscene}");
+                ImGui.Text($"HP: {state.HpPercent:0.0}%");
+            }
+        }
+
         if (ImGui.CollapsingHeader("Experimental BGM scene diagnostics"))
         {
             DrawBgmDiagnostics();
@@ -46,31 +74,6 @@ public class MainWindow : Window, IDisposable
         {
             DrawMusicBusDiagnostics();
         }
-
-        if (ImGui.Button("Open Settings"))
-        {
-            plugin.ToggleConfigUi();
-        }
-
-        var state = plugin.LastState;
-        if (state == null)
-        {
-            ImGui.Text("Waiting for state sample...");
-            return;
-        }
-
-        ImGui.Text($"Player loaded: {state.HasPlayer}");
-        ImGui.Text($"Mounted: {state.IsMounted}");
-        ImGui.Text($"Swimming: {state.IsSwimming}");
-        ImGui.Text($"Underwater: {state.IsUnderwater}");
-        ImGui.Text($"Moving: {state.IsMoving}");
-        ImGui.Text($"Idle: {state.IsIdle}");
-        ImGui.Text($"Idle for: {state.IdleForSeconds:0.0}s");
-        ImGui.Text($"Combat: {state.IsInCombat}");
-        ImGui.Text($"Duty: {state.IsInDuty}");
-        ImGui.Text($"Cutscene: {state.IsInCutscene}");
-        ImGui.Text($"HP: {state.HpPercent:0.0}%");
-
     }
 
     private static unsafe void DrawBgmDiagnostics()
