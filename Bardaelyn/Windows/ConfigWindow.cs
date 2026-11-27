@@ -275,6 +275,7 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
+        ImGui.TextWrapped("Activation delay: how long conditions must match before this rule can take effect. Deactivation delay: how long the selected rule stays active after it stops matching; a higher-priority rule can take over.");
         var activation = rule.ActivateAfterSeconds;
         if (Number("Activate after (seconds)", ref activation, 0f, 3600f, "%.1f"))
         {
@@ -282,6 +283,14 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
+        var deactivation = rule.DeactivateAfterSeconds;
+        if (Number("Deactivate after (seconds)", ref deactivation, 0f, 3600f, "%.1f"))
+        {
+            rule.DeactivateAfterSeconds = deactivation;
+            configuration.Save();
+        }
+
+        ImGui.TextWrapped("Fades control how gradually volume changes after a rule takes effect. Fade durations describe a full-scale volume change; smaller changes finish sooner.");
         var useGlobalFades = rule.UseGlobalFades;
         if (ImGui.Checkbox("Use global fades", ref useGlobalFades))
         {
@@ -302,13 +311,6 @@ public class ConfigWindow : Window, IDisposable
                 rule.FadeOutSeconds = fadeOut;
                 configuration.Save();
             }
-        }
-
-        var deactivation = rule.DeactivateAfterSeconds;
-        if (Number("Deactivate after (seconds)", ref deactivation, 0f, 3600f, "%.1f"))
-        {
-            rule.DeactivateAfterSeconds = deactivation;
-            configuration.Save();
         }
 
         var requireAll = rule.RequireAll;
