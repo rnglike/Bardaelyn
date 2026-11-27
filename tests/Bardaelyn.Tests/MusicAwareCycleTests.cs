@@ -15,6 +15,7 @@ public sealed class MusicAwareCycleTests
         MusicMinSeconds = 20, MusicMaxSeconds = 20
     };
 
+    // Pauses the music phase at zero bus count and resumes for positive counts.
     [Fact]
     public void PausesMusicWhenSilentAndResumesForAnyPositiveCount()
     {
@@ -26,6 +27,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (13s", Evaluate(28, 1).Status);
     }
 
+    // Returns estimated stop-detection delay to the music timer in separate mode.
     [Fact]
     public void SeparateModeCorrectsDelayedStopAndKeepsQuietSeparate()
     {
@@ -39,6 +41,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("quiet (10s", Evaluate(65, 1).Status);
     }
 
+    // Starts quiet on a natural gap and credits the estimated delay once.
     [Fact]
     public void NaturalGapStartsQuietAndCreditsEstimatedDelayOnlyOnce()
     {
@@ -52,6 +55,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (20s", Evaluate(100, 0).Status);
     }
 
+    // Limits stop correction to the amount of music actually observed.
     [Fact]
     public void ShortObservedMusicIsNotOvercorrected()
     {
@@ -63,6 +67,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("quiet (8s", stopped.Status);
     }
 
+    // Uses elapsed time when detection is unavailable without inventing a stop.
     [Fact]
     public void UnavailableFallsBackToElapsedTimeAndDoesNotInventStop()
     {
@@ -75,6 +80,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (5s", Evaluate(30, 0).Status);
     }
 
+    // Does not consume leftover music-phase time when no music is detected.
     [Fact]
     public void QuietToMusicTransitionPausesUnusedElapsedTimeWhenNoMusic()
     {
@@ -82,6 +88,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (20s", Evaluate(30, 0).Status);
     }
 
+    // Excludes suspended time from stop-delay correction.
     [Fact]
     public void SuspendPreventsCorrectionForUnobservedTime()
     {
@@ -91,6 +98,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (20s", Evaluate(100, 0).Status);
     }
 
+    // Limits natural-gap correction to the current music phase.
     [Fact]
     public void NaturalGapCorrectionIsLimitedToCurrentMusicPhase()
     {
@@ -101,6 +109,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("quiet (9s", result.Status);
     }
 
+    // Allows stop-delay correction to be disabled.
     [Fact]
     public void DelayCanBeDisabled()
     {
@@ -110,6 +119,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (15s", result.Status);
     }
 
+    // Keeps the global cycle paused when music stops during an interruption.
     [Fact]
     public void InterruptedCycleRemainsPausedDespiteMusicStop()
     {
@@ -123,6 +133,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("waiting for music", result.Status);
     }
 
+    // Resumes either phase with the same remaining time after an interruption.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -143,6 +154,7 @@ public sealed class MusicAwareCycleTests
         Assert.Equal(quiet ? 0f : 1f, resumed.TargetVolume);
     }
 
+    // Excludes time spent under an overriding rule from stop correction.
     [Fact]
     public void StopCorrectionDoesNotCountTimeSpentInOverridingRule()
     {
@@ -156,6 +168,7 @@ public sealed class MusicAwareCycleTests
         Assert.Contains("music (19s remaining)", stopped.Status);
     }
 
+    // Preserves existing cycle settings and defaults to separate-gap mode.
     [Fact]
     public void ExistingSettingsRetainCycleValuesAndDefaultToSeparateMode()
     {

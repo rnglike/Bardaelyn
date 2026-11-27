@@ -8,6 +8,7 @@ public sealed class SwimmingAndProbabilityTests
 {
     private static readonly DateTime Start = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Matches swimming and underwater as independent conditions.
     [Theory]
     [InlineData(RuleCondition.Swimming, true, false)]
     [InlineData(RuleCondition.Underwater, false, true)]
@@ -19,6 +20,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Equal("Default", engine.Evaluate(new BgmStateSnapshot { IsSwimming = !swimming, IsUnderwater = !underwater }, Start.AddSeconds(1)).RuleName);
     }
 
+    // Attempts quiet immediately, then retries after the configured music time.
     [Fact]
     public void ProbabilityAttemptsImmediatelyAndThenAtMusicTimeIntervals()
     {
@@ -36,6 +38,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Empty(rolls);
     }
 
+    // Waits for music before making the first probability attempt.
     [Fact]
     public void ImmediateAttemptWaitsForMusic()
     {
@@ -50,6 +53,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Equal(1, calls);
     }
 
+    // Pauses the retry countdown while another rule overrides the cycle.
     [Fact]
     public void FailedAttemptsPauseWhenOverriddenAndResumeWithRemainingTime()
     {
@@ -65,6 +69,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Contains("music (7s", engine.Evaluate(normal, cycle, Start.AddSeconds(101), 1).Status);
     }
 
+    // Makes an immediate attempt when switching to probability mode.
     [Fact]
     public void SwitchingToProbabilityAtSameTimestampMakesImmediateAttempt()
     {
@@ -78,6 +83,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Contains("quiet", engine.Evaluate(decision, cycle, Start.AddSeconds(10), 1).Status);
     }
 
+    // Keeps a zero-chance cycle in music even when detection is unavailable.
     [Fact]
     public void ZeroChanceStaysInMusicAcrossAttemptsAndUnavailableDetection()
     {
@@ -89,6 +95,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Contains("music (5s", engine.Evaluate(decision, cycle, Start.AddSeconds(110), null).Status);
     }
 
+    // Chooses a new randomized quiet duration after a successful attempt.
     [Fact]
     public void SuccessfulAttemptChoosesRandomQuietDuration()
     {
@@ -102,6 +109,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Empty(rolls);
     }
 
+    // Restricts stop correction to time since the most recent probability attempt.
     [Fact]
     public void StopCorrectionRestoresOnlyTimeSinceMostRecentAttempt()
     {
@@ -116,6 +124,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Contains("waiting for music", stopped.Status);
     }
 
+    // Starts quiet and credits stop delay on a natural gap in probability mode.
     [Fact]
     public void ProbabilityNaturalGapStartsQuietAndCreditsDetectedDelay()
     {
@@ -129,6 +138,7 @@ public sealed class SwimmingAndProbabilityTests
         Assert.Contains("quiet (6s", stopped.Status);
     }
 
+    // Handles a very long elapsed interval efficiently at zero chance.
     [Fact]
     public void ZeroChanceHandlesVeryLongElapsedTime()
     {

@@ -8,6 +8,7 @@ public sealed class MovementTrackerTests
 {
     private static readonly DateTime Start = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Ignores small position changes that do not meet the movement threshold.
     [Fact]
     public void IgnoresPositionJitterBelowMovementThreshold()
     {
@@ -19,6 +20,7 @@ public sealed class MovementTrackerTests
         Assert.False(state.IsMoving);
     }
 
+    // Keeps the movement state active briefly after the last movement sample.
     [Fact]
     public void DetectsMovementAndKeepsItBrieflyAfterTheLastPositionChange()
     {
@@ -30,6 +32,7 @@ public sealed class MovementTrackerTests
         Assert.False(tracker.Update(new Vector3(0.1f, 0f, 0f), Start.AddMilliseconds(900)).IsMoving);
     }
 
+    // Measures stationary time once movement has stopped.
     [Fact]
     public void ReportsStationaryDurationAfterMovementStops()
     {
@@ -44,6 +47,7 @@ public sealed class MovementTrackerTests
         Assert.InRange(state.IdleForSeconds, 0.7f, 0.9f);
     }
 
+    // Clears movement history when the player is unavailable.
     [Fact]
     public void ResetsAfterPlayerIsUnavailable()
     {
@@ -59,6 +63,7 @@ public sealed class MovementTrackerTests
         Assert.Equal(0f, state.IdleForSeconds);
     }
 
+    // Starts idle time on entry and resets it when idle is interrupted.
     [Fact]
     public void IdleDurationStartsWhenIdleBeginsAndResetsWhenInterrupted()
     {
@@ -73,6 +78,7 @@ public sealed class MovementTrackerTests
         Assert.Equal(2f, tracker.Update(true, Start.AddSeconds(32)));
     }
 
+    // Starts the idle timer after the movement grace period ends.
     [Fact]
     public void IdleDurationStartsAfterMovementGracePeriod()
     {

@@ -9,6 +9,7 @@ public sealed class SilenceCycleTests
 {
     private static readonly DateTime Start = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Starts quiet and switches phases at their exact duration boundaries.
     [Fact]
     public void StartsQuietAndAlternatesAtExactBoundaries()
     {
@@ -23,6 +24,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("9s", cycles.Evaluate(decision, settings, Start.AddSeconds(31)).Status);
     }
 
+    // Chooses a random duration when each new phase begins.
     [Fact]
     public void RandomRangesAreChosenAtTheStartOfEachPhase()
     {
@@ -39,6 +41,7 @@ public sealed class SilenceCycleTests
         Assert.Equal(0.2f, cycles.Evaluate(decision, settings, Start.AddSeconds(45)).TargetVolume, 4);
     }
 
+    // Pauses the global cycle while a rule-specific cycle is active.
     [Fact]
     public void RuleCycleOverridesAndPausesGlobalCycle()
     {
@@ -59,6 +62,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("Global: music", cycles.Evaluate(engine.Evaluate(State(), Start.AddSeconds(14)), global, Start.AddSeconds(14)).Status);
     }
 
+    // Resumes a paused rule cycle if its rule remains active after interruption.
     [Fact]
     public void WinningInterruptPausesRuleCycleAndResumesItIfStillActive()
     {
@@ -79,6 +83,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("Rule: music", cycles.Evaluate(engine.Evaluate(State(mounted: true), Start.AddSeconds(110)), global, Start.AddSeconds(110)).Status);
     }
 
+    // Prevents a lower-priority interrupt from bypassing the winning rule's cycle.
     [Fact]
     public void LowerPriorityInterruptCannotBypassWinningCycle()
     {
@@ -96,6 +101,7 @@ public sealed class SilenceCycleTests
         Assert.Equal(0.1f, result.TargetVolume, 4);
     }
 
+    // Restarts a rule cycle after its rule becomes inactive and matches again.
     [Fact]
     public void RuleCycleRestartsAfterRuleBecomesInactive()
     {
@@ -113,6 +119,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("Rule: quiet (10s", restarted.Status);
     }
 
+    // Preserves time while suspended but resets the cycle when disabled.
     [Fact]
     public void SuspendPausesElapsedTimeAndDisablingCycleResetsIt()
     {
@@ -129,6 +136,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("10s", cycles.Evaluate(decision, settings, Start.AddSeconds(102)).Status);
     }
 
+    // Applies normal priority when a low-HP rule interrupts the cycle.
     [Fact]
     public void LowHpInterruptionCompetesByPriority()
     {
@@ -146,6 +154,7 @@ public sealed class SilenceCycleTests
         Assert.Equal("Interrupted", result.Status);
     }
 
+    // Applies the global cycle to ordinary rules and pauses it for interrupts.
     [Fact]
     public void GlobalCyclePausesDuringInterruptAndAppliesToOrdinaryRules()
     {
@@ -164,6 +173,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("5s", resumed.Status);
     }
 
+    // Starts a rule's cycle only after its activation delay completes.
     [Fact]
     public void RuleCycleStartsAfterActivationDelay()
     {
@@ -178,6 +188,7 @@ public sealed class SilenceCycleTests
         Assert.Contains("Rule: quiet (10s", cycles.Evaluate(engine.Evaluate(State(mounted: true), Start.AddSeconds(5)), global, Start.AddSeconds(5)).Status);
     }
 
+    // Normalizes invalid cycle values and repairs null cycle settings.
     [Fact]
     public void CycleSettingsAreNormalizedIncludingNullSettings()
     {

@@ -5,6 +5,7 @@ namespace Bardaelyn.Tests;
 
 public sealed class RuleConflictAnalyzerTests
 {
+    // Detects when a general combat rule covers a narrower combat-and-HP rule.
     [Fact]
     public void DetectsCombatCoveringCombatAndLowHp()
     {
@@ -14,6 +15,7 @@ public sealed class RuleConflictAnalyzerTests
         Assert.Null(RuleConflictAnalyzer.FindCoveringRule([heat, battle], 1));
     }
 
+    // Accounts for exclusions, OR matching, and disabled rules in coverage.
     [Fact]
     public void HonorsExclusionsAnyConditionsAndDisabledRules()
     {
@@ -30,6 +32,7 @@ public sealed class RuleConflictAnalyzerTests
         Assert.Null(RuleConflictAnalyzer.FindCoveringRule([broad, narrow], 1));
     }
 
+    // Compares HP thresholds before reporting coverage.
     [Fact]
     public void AccountsForDifferentHpThresholds()
     {

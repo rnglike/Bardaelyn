@@ -7,6 +7,7 @@ namespace Bardaelyn.Tests;
 
 public sealed class ProfileTests
 {
+    // Creates the initial profile without changing existing settings.
     [Fact]
     public void ExistingSettingsBecomeInitialProfileWithoutChangingValues()
     {
@@ -23,6 +24,7 @@ public sealed class ProfileTests
         Assert.Equal(25f, config.GlobalCycle.QuietMinSeconds);
     }
 
+    // Saves the outgoing profile and keeps nested settings independent.
     [Fact]
     public void SwitchingAutosavesAndCopiesNestedSettings()
     {
@@ -46,6 +48,7 @@ public sealed class ProfileTests
         Assert.Equal("Changed", config.Rules[0].Name);
     }
 
+    // Preserves profiles through serialization and rejects invalid profile names.
     [Fact]
     public void ProfilesSurviveRoundTripAndRejectDuplicates()
     {

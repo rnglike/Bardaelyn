@@ -10,6 +10,7 @@ public sealed class PriorityAndExclusionTests
 {
     private static readonly DateTime Now = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Starts new configurations without rules or a built-in low-HP override.
     [Fact]
     public void NewConfigurationHasNoRulesOrBuiltInLowHpOverride()
     {
@@ -21,6 +22,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("Default", result.RuleName);
     }
 
+    // Preserves custom rules and their shared HP threshold during migration.
     [Fact]
     public void LegacySettingsPreserveCustomRulesAndThresholdButRemoveBuiltInRule()
     {
@@ -41,6 +43,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal(45f, configuration.Rules[1].LowHpThresholdPercent);
     }
 
+    // Applies each rule's threshold to included and excluded low HP.
     [Fact]
     public void RulesUseIndependentThresholdsForIncludedAndExcludedLowHp()
     {
@@ -54,6 +57,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("not low", engine.Evaluate(new BgmStateSnapshot { HpPercent = 51 }, Now.AddSeconds(2)).RuleName);
     }
 
+    // Migrates numeric priorities into stable list order and copies the HP threshold.
     [Fact]
     public void MigrationPreservesNumericOrderAndCopiesSharedThreshold()
     {
@@ -80,6 +84,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("tie A", configuration.Rules[0].Name);
     }
 
+    // Reordering preserves rules and changes which matching rule wins.
     [Fact]
     public void MovingEntriesPreservesRulesAndChangesSelectedPriority()
     {
@@ -98,6 +103,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("B", engine.Evaluate(state, Now.AddSeconds(2)).RuleName);
     }
 
+    // Preserves rule order and exclusions through serialization and normalization.
     [Fact]
     public void OrderedSettingsSurviveSerializationAndNormalization()
     {
@@ -115,6 +121,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal([RuleCondition.InCombat], restored.Rules[0].ExcludedConditions);
     }
 
+    // Removes only the requested rules and rejects an invalid index.
     [Fact]
     public void RemovingRulesKeepsRemainingRules()
     {
@@ -129,6 +136,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Throws<ArgumentOutOfRangeException>(() => configuration.RemoveRuleAt(1));
     }
 
+    // Excluded conditions veto matches in both AND and OR modes.
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -143,6 +151,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("Default", engine.Evaluate(new BgmStateSnapshot { IsMounted = true, IsInCombat = true }, Now.AddSeconds(1)).RuleName);
     }
 
+    // Allows exclusion-only rules to match when excluded states are absent.
     [Fact]
     public void ExclusionOnlyRuleMatchesOnlyWhenExcludedStatesAreAbsent()
     {
@@ -156,6 +165,7 @@ public sealed class PriorityAndExclusionTests
         Assert.Equal("Default", engine.Evaluate(new BgmStateSnapshot { IsInCombat = true }, Now.AddSeconds(1)).RuleName);
     }
 
+    // Repairs null, duplicate, invalid, and conflicting exclusions.
     [Fact]
     public void NormalizationRepairsExcludedConditions()
     {

@@ -7,6 +7,7 @@ namespace Bardaelyn.Tests;
 
 public sealed class TimingFeaturesTests
 {
+    // Converts real time around the Unix epoch to the expected Eorzea minute.
     [Theory]
     [InlineData(0, 0)]
     [InlineData(175, 60)]
@@ -18,6 +19,7 @@ public sealed class TimingFeaturesTests
         Assert.Equal(minute, EorzeaPeriods.MinuteAt(DateTime.UnixEpoch.AddSeconds(seconds)));
     }
 
+    // Includes period starts and excludes ends, including overnight periods.
     [Theory]
     [InlineData(EorzeaPeriod.Morning, 359, false)]
     [InlineData(EorzeaPeriod.Morning, 360, true)]
@@ -31,6 +33,7 @@ public sealed class TimingFeaturesTests
         Assert.Equal(matches, new EorzeaPeriods().Contains(period, minute));
     }
 
+    // Combines time periods with AND, OR, and exclusion rule matching.
     [Fact]
     public void TimeConditionSupportsAnyAllAndExclusion()
     {
@@ -54,6 +57,7 @@ public sealed class TimingFeaturesTests
         Assert.False(RuleEngine.Matches(rule, new BgmStateSnapshot(), periods));
     }
 
+    // Migrates legacy fades per profile and keeps copied timing settings independent.
     [Fact]
     public void LegacyFadesMigrateForEveryProfileAndCopiesAreIndependent()
     {
@@ -83,6 +87,7 @@ public sealed class TimingFeaturesTests
         Assert.Equal(9, config.Rules[0].FadeInSeconds);
     }
 
+    // Selects incoming or outgoing fades and preserves an ongoing transition.
     [Fact]
     public void FadeSelectionUsesIncomingThenOutgoingAndKeepsTransitionAcrossSamples()
     {
@@ -98,6 +103,7 @@ public sealed class TimingFeaturesTests
         Assert.Equal(2, selector.Select(null, 1, 2, 4));
     }
 
+    // Makes cycle transitions immediate when both directional fades are zero.
     [Fact]
     public void ZeroFadesAreImmediateAndCyclesUseDirection()
     {

@@ -5,6 +5,7 @@ namespace Bardaelyn.Tests;
 
 public sealed class AudioControllerTests
 {
+    // Scales rule volume against the current game setting while fading.
     [Fact]
     public void FadesAndScalesAgainstLiveGameSetting()
     {
@@ -21,6 +22,7 @@ public sealed class AudioControllerTests
         Assert.Equal(0.1f, applied[^1], 4);
     }
 
+    // Fades back to the updated game setting without a volume jump.
     [Fact]
     public void ReleaseFadesToUpdatedBaselineWithoutJumping()
     {
@@ -38,6 +40,7 @@ public sealed class AudioControllerTests
         Assert.Equal(0.6f, controller.CurrentVolume, 4);
     }
 
+    // Retries restoring volume after an application failure.
     [Fact]
     public void ReleaseRetriesWhenApplicationFails()
     {
@@ -57,6 +60,7 @@ public sealed class AudioControllerTests
         Assert.Equal(3, attempts);
     }
 
+    // Restores the latest game setting immediately and stops updating it.
     [Fact]
     public void RestoreAppliesLatestBaselineImmediately()
     {

@@ -11,6 +11,7 @@ public sealed class StateMonitorTests
 {
     private static readonly DateTime Start = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Excludes stationary time during each combat, duty, and cutscene flag.
     [Theory]
     [InlineData(ConditionFlag.InCombat)]
     [InlineData(ConditionFlag.BoundByDuty)]
@@ -40,6 +41,7 @@ public sealed class StateMonitorTests
         Assert.Equal(0f, monitor.Capture(Start.AddSeconds(30)).IdleForSeconds);
     }
 
+    // Resets idle duration when the player disappears and returns.
     [Fact]
     public void LosingThePlayerResetsIdleDuration()
     {

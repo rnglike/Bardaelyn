@@ -9,6 +9,7 @@ public sealed class RuleEngineTests
 {
     private static readonly DateTime Start = new(2026, 11, 23, 12, 0, 0, DateTimeKind.Utc);
 
+    // Uses the default volume when no rule matches.
     [Fact]
     public void UsesDefaultWhenNoRuleMatches()
     {
@@ -24,6 +25,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.8f, result.TargetVolume);
     }
 
+    // Requires all included conditions when AND matching is enabled.
     [Fact]
     public void RequiresEveryConditionWhenRequireAllIsTrue()
     {
@@ -46,6 +48,7 @@ public sealed class RuleEngineTests
         Assert.Equal("Default", result.RuleName);
     }
 
+    // Accepts any included condition when OR matching is enabled.
     [Fact]
     public void MatchesAnyConditionWhenRequireAllIsFalse()
     {
@@ -69,6 +72,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.2f, result.TargetVolume);
     }
 
+    // Activates a matching rule only after its configured delay.
     [Fact]
     public void ActivatesOnlyAfterConfiguredDelay()
     {
@@ -82,6 +86,7 @@ public sealed class RuleEngineTests
         Assert.Equal("Mounted", engine.Evaluate(State(isMounted: true), Start.AddSeconds(10)).RuleName);
     }
 
+    // Keeps a selected rule active during its deactivation delay.
     [Fact]
     public void HoldsSelectedRuleDuringDeactivationDelay()
     {
@@ -95,6 +100,7 @@ public sealed class RuleEngineTests
         Assert.Equal("Default", engine.Evaluate(State(), Start.AddSeconds(5.1)).RuleName);
     }
 
+    // Selects by list order rather than the legacy numeric priority.
     [Fact]
     public void FirstMatchingRuleWinsRegardlessOfOldPriority()
     {
@@ -113,6 +119,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.1f, result.TargetVolume);
     }
 
+    // Tracks activation separately for rules with identical names.
     [Fact]
     public void SameNamedRulesKeepIndependentActivationState()
     {
@@ -136,6 +143,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.8f, result.TargetVolume);
     }
 
+    // Matches low HP against the rule's own threshold.
     [Fact]
     public void LowHpConditionUsesRuleThreshold()
     {
@@ -150,6 +158,7 @@ public sealed class RuleEngineTests
         Assert.Equal(1f, result.TargetVolume);
     }
 
+    // Does not let a low-HP rule override an earlier matching rule.
     [Fact]
     public void LowHpConditionDoesNotOverrideEarlierRule()
     {
@@ -165,6 +174,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.15f, result.TargetVolume);
     }
 
+    // Never matches a rule without included or excluded conditions.
     [Fact]
     public void EmptyConditionsNeverMatch()
     {
@@ -178,6 +188,7 @@ public sealed class RuleEngineTests
         Assert.Equal("Default", result.RuleName);
     }
 
+    // Reads current settings on each evaluation.
     [Fact]
     public void UsesLatestSettingsOnEachEvaluation()
     {
@@ -190,6 +201,7 @@ public sealed class RuleEngineTests
         Assert.Equal(0.7f, result.TargetVolume);
     }
 
+    // Repairs invalid configuration values, rule names, and conditions.
     [Fact]
     public void ConfigurationNormalizationClampsAndRepairsInvalidValues()
     {
@@ -225,6 +237,7 @@ public sealed class RuleEngineTests
         Assert.Equal([RuleCondition.Mounted], configuration.Rules[0].Conditions);
     }
 
+    // Replaces a null rule list with an empty list.
     [Fact]
     public void ConfigurationNormalizationRepairsNullRuleList()
     {
