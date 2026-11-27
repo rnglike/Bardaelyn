@@ -33,7 +33,7 @@ public sealed class PriorityAndExclusionTests
             """;
         var configuration = JsonSerializer.Deserialize<Configuration>(json)!;
         configuration.Normalize();
-        Assert.Equal(4, configuration.Version);
+        Assert.Equal(5, configuration.Version);
         Assert.Equal(["included", "excluded"], configuration.Rules.Select(rule => rule.Name));
         Assert.All(configuration.Rules, rule => Assert.Equal(45f, rule.LowHpThresholdPercent));
         Assert.True(configuration.GlobalCycle.Enabled);
@@ -74,7 +74,7 @@ public sealed class PriorityAndExclusionTests
 
         configuration.Normalize();
 
-        Assert.Equal(4, configuration.Version);
+        Assert.Equal(5, configuration.Version);
         Assert.Equal(["high", "tie A", "tie B", "low"], configuration.Rules.Select(rule => rule.Name));
         Assert.All(configuration.Rules, rule => Assert.Equal(42, rule.LowHpThresholdPercent));
         Assert.True(configuration.GlobalCycle.Enabled);

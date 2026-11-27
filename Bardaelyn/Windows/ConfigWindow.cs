@@ -263,35 +263,6 @@ public class ConfigWindow : Window, IDisposable
             configuration.Save();
         }
 
-        ImGui.TextWrapped("Activation delay: how long conditions must match before this rule can take effect. Deactivation delay: how long the selected rule stays active after it stops matching; a higher-priority rule can take over.");
-        var activation = rule.ActivateAfterSeconds;
-        if (Number("Activate after (seconds)", ref activation, 0f, 3600f, "%.1f"))
-        {
-            rule.ActivateAfterSeconds = activation;
-            configuration.Save();
-        }
-
-        var deactivation = rule.DeactivateAfterSeconds;
-        if (Number("Deactivate after (seconds)", ref deactivation, 0f, 3600f, "%.1f"))
-        {
-            rule.DeactivateAfterSeconds = deactivation;
-            configuration.Save();
-        }
-
-        ImGui.TextWrapped("Fades control how gradually volume changes after a rule takes effect. Fade durations describe a full-scale volume change; smaller changes finish sooner.");
-        var fadeIn = rule.FadeInSeconds;
-        if (Number("Rule fade in (seconds)", ref fadeIn, 0f, 60f, "%.1f"))
-        {
-            rule.FadeInSeconds = fadeIn;
-            configuration.Save();
-        }
-        var fadeOut = rule.FadeOutSeconds;
-        if (Number("Rule fade out (seconds)", ref fadeOut, 0f, 60f, "%.1f"))
-        {
-            rule.FadeOutSeconds = fadeOut;
-            configuration.Save();
-        }
-
         var requireAll = rule.RequireAll;
         if (ImGui.Checkbox("Require all included conditions", ref requireAll))
         {
@@ -359,6 +330,8 @@ public class ConfigWindow : Window, IDisposable
             }
         }
 
+        DrawRuleTiming(rule);
+
         if (!rule.InterruptSilence && rule.Cycle.Enabled)
         {
             ImGui.PushID("cycle");
@@ -369,6 +342,72 @@ public class ConfigWindow : Window, IDisposable
             ImGui.PopID();
         }
 
+    }
+
+    private void DrawRuleTiming(BgmRule rule)
+    {
+        ImGui.TextWrapped("Activation delay: how long conditions must match before this rule can take effect. Deactivation delay: how long the selected rule stays active after it stops matching; a higher-priority rule can take over.");
+        var separateDelays = rule.SeparateDelays;
+        if (ImGui.Checkbox("Separate activation and deactivation delays", ref separateDelays))
+        {
+            rule.SeparateDelays = separateDelays;
+            if (!separateDelays)
+            {
+                rule.DeactivateAfterSeconds = rule.ActivateAfterSeconds;
+            }
+            configuration.Save();
+        }
+        var activation = rule.ActivateAfterSeconds;
+        if (Number(separateDelays ? "Activate after (seconds)" : "Activation and deactivation delay (seconds)", ref activation, 0f, 3600f, "%.1f"))
+        {
+            rule.ActivateAfterSeconds = activation;
+            if (!separateDelays)
+            {
+                rule.DeactivateAfterSeconds = activation;
+            }
+            configuration.Save();
+        }
+        if (separateDelays)
+        {
+            var deactivation = rule.DeactivateAfterSeconds;
+            if (Number("Deactivate after (seconds)", ref deactivation, 0f, 3600f, "%.1f"))
+            {
+                rule.DeactivateAfterSeconds = deactivation;
+                configuration.Save();
+            }
+        }
+
+        ImGui.TextWrapped("Fades control how gradually volume changes after a rule takes effect. Fade durations describe a full-scale volume change; smaller changes finish sooner.");
+        var separateFades = rule.SeparateFades;
+        if (ImGui.Checkbox("Separate fade in and fade out", ref separateFades))
+        {
+            rule.SeparateFades = separateFades;
+            if (!separateFades)
+            {
+                rule.FadeOutSeconds = rule.FadeInSeconds;
+            }
+            configuration.Save();
+        }
+        var fadeIn = rule.FadeInSeconds;
+        if (Number(separateFades ? "Rule fade in (seconds)" : "Rule fade (seconds)", ref fadeIn, 0f, 60f, "%.1f"))
+        {
+            rule.FadeInSeconds = fadeIn;
+            if (!separateFades)
+            {
+                rule.FadeOutSeconds = fadeIn;
+            }
+            configuration.Save();
+        }
+        if (separateFades)
+        {
+            var fadeOut = rule.FadeOutSeconds;
+            if (Number("Rule fade out (seconds)", ref fadeOut, 0f, 60f, "%.1f"))
+            {
+                rule.FadeOutSeconds = fadeOut;
+                configuration.Save();
+            }
+        }
+        ImGui.TextWrapped("When combining separate controls, the activation or fade-in value is used for both directions.");
     }
 
     private void DrawConditionList(string id, List<RuleCondition> selected, List<RuleCondition> opposite)

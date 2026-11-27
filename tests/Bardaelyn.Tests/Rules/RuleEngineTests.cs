@@ -207,6 +207,7 @@ public sealed class RuleEngineTests
     {
         var configuration = new Configuration
         {
+            Version = 5,
             DefaultVolume = float.NaN,
             FadeDurationSeconds = float.PositiveInfinity,
             UpdateIntervalSeconds = -10f,
@@ -219,6 +220,7 @@ public sealed class RuleEngineTests
                     TargetVolume = float.NaN,
                     ActivateAfterSeconds = -1f,
                     DeactivateAfterSeconds = float.PositiveInfinity,
+                    SeparateDelays = true,
                     Conditions = [(RuleCondition)999, RuleCondition.Mounted, RuleCondition.Mounted]
                 }
             ]
@@ -233,7 +235,7 @@ public sealed class RuleEngineTests
         Assert.Equal("Rule 1", configuration.Rules[0].Name);
         Assert.Equal(0.5f, configuration.Rules[0].TargetVolume);
         Assert.Equal(0f, configuration.Rules[0].ActivateAfterSeconds);
-        Assert.Equal(3f, configuration.Rules[0].DeactivateAfterSeconds);
+        Assert.Equal(0f, configuration.Rules[0].DeactivateAfterSeconds);
         Assert.Equal([RuleCondition.Mounted], configuration.Rules[0].Conditions);
     }
 

@@ -66,9 +66,11 @@ public sealed class SettingsProfile
     {
         Name = rule.Name, Enabled = rule.Enabled, Priority = rule.Priority,
         TargetVolume = rule.TargetVolume, ActivateAfterSeconds = rule.ActivateAfterSeconds,
-        DeactivateAfterSeconds = rule.DeactivateAfterSeconds, RequireAll = rule.RequireAll,
+        DeactivateAfterSeconds = rule.DeactivateAfterSeconds, SeparateDelays = rule.SeparateDelays,
+        RequireAll = rule.RequireAll,
         LowHpThresholdPercent = rule.LowHpThresholdPercent,
-        UseGlobalFades = rule.UseGlobalFades, FadeInSeconds = rule.FadeInSeconds, FadeOutSeconds = rule.FadeOutSeconds,
+        UseGlobalFades = rule.UseGlobalFades, FadeInSeconds = rule.FadeInSeconds,
+        FadeOutSeconds = rule.FadeOutSeconds, SeparateFades = rule.SeparateFades,
         TimePeriods = rule.TimePeriods is null ? [] : [.. rule.TimePeriods],
         Conditions = [.. rule.Conditions], ExcludedConditions = [.. rule.ExcludedConditions],
         InterruptSilence = rule.InterruptSilence, Cycle = CopyCycle(rule.Cycle)

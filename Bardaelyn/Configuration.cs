@@ -48,17 +48,14 @@ public class Configuration : IPluginConfiguration
         GlobalCycle.Normalize();
         Rules ??= [];
 
-        if (Version < 4)
+        if (Version < 5)
         {
-            MigrateRuleFades(Rules, FadeInSeconds.Value, FadeOutSeconds.Value);
+            ResetRuleTiming(Rules);
             if (Profiles is not null)
             {
                 foreach (var profile in Profiles)
                 {
-                    var legacyFade = ClampFinite(profile.FadeDurationSeconds, 2f, 0f, 60f);
-                    var fadeIn = ClampFinite(profile.FadeInSeconds ?? legacyFade, legacyFade, 0f, 60f);
-                    var fadeOut = ClampFinite(profile.FadeOutSeconds ?? legacyFade, legacyFade, 0f, 60f);
-                    MigrateRuleFades(profile.Rules, fadeIn, fadeOut);
+                    ResetRuleTiming(profile.Rules);
                 }
             }
         }
@@ -82,9 +79,17 @@ public class Configuration : IPluginConfiguration
 
             rule.TargetVolume = ClampFinite(rule.TargetVolume, 0.5f, 0f, 1f);
             rule.ActivateAfterSeconds = ClampFinite(rule.ActivateAfterSeconds, 0f, 0f, 3600f);
-            rule.DeactivateAfterSeconds = ClampFinite(rule.DeactivateAfterSeconds, 3f, 0f, 3600f);
+            rule.DeactivateAfterSeconds = ClampFinite(rule.DeactivateAfterSeconds, 0f, 0f, 3600f);
             rule.FadeInSeconds = ClampFinite(rule.FadeInSeconds, 2f, 0f, 60f);
             rule.FadeOutSeconds = ClampFinite(rule.FadeOutSeconds, 2f, 0f, 60f);
+            if (!rule.SeparateDelays)
+            {
+                rule.DeactivateAfterSeconds = rule.ActivateAfterSeconds;
+            }
+            if (!rule.SeparateFades)
+            {
+                rule.FadeOutSeconds = rule.FadeInSeconds;
+            }
             rule.TimePeriods ??= [];
             rule.TimePeriods = rule.TimePeriods.Where(period => Enum.IsDefined(period)).Distinct().ToList();
             if (Version < 3)
@@ -113,7 +118,7 @@ public class Configuration : IPluginConfiguration
             Rules = Rules.OrderByDescending(rule => rule.Priority).ToList();
         }
 
-        Version = Math.Max(4, Version);
+        Version = Math.Max(5, Version);
         if (Profiles is null)
         {
             ActiveProfileName = "Current settings";
@@ -195,7 +200,7 @@ public class Configuration : IPluginConfiguration
         Rules = Rules
     };
 
-    private static void MigrateRuleFades(List<BgmRule>? rules, float fadeIn, float fadeOut)
+    private static void ResetRuleTiming(List<BgmRule>? rules)
     {
         if (rules is null)
         {
@@ -204,10 +209,14 @@ public class Configuration : IPluginConfiguration
 
         foreach (var rule in rules)
         {
-            if (rule is not null && rule.UseGlobalFades)
+            if (rule is not null)
             {
-                rule.FadeInSeconds = fadeIn;
-                rule.FadeOutSeconds = fadeOut;
+                rule.ActivateAfterSeconds = 0f;
+                rule.DeactivateAfterSeconds = 0f;
+                rule.SeparateDelays = false;
+                rule.FadeInSeconds = 2f;
+                rule.FadeOutSeconds = 2f;
+                rule.SeparateFades = false;
                 rule.UseGlobalFades = false;
             }
         }

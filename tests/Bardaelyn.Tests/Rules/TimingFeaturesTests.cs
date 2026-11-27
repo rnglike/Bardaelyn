@@ -58,14 +58,15 @@ public sealed class TimingFeaturesTests
         Assert.False(RuleEngine.Matches(rule, new BgmStateSnapshot(), periods));
     }
 
-    // Migrates legacy fades per profile and keeps copied timing settings independent.
+    // Resets old rule timings in all profiles and keeps later split settings independent.
     [Fact]
-    public void LegacyFadesMigrateForEveryProfileAndCopiesAreIndependent()
+    public void LegacyRuleTimingResetsForEveryProfileAndCopiesAreIndependent()
     {
         var config = new Configuration
         {
             Version = 3, FadeDurationSeconds = 4, FadeInSeconds = 5, FadeOutSeconds = 6,
-            Rules = [new BgmRule { Name = "Active" }],
+            Rules = [new BgmRule { Name = "Active", ActivateAfterSeconds = 12, DeactivateAfterSeconds = 24,
+                FadeInSeconds = 6, FadeOutSeconds = 8, SeparateDelays = true, SeparateFades = true }],
             ActiveProfileName = "A",
             Profiles = [new SettingsProfile { Name = "A", FadeDurationSeconds = 4 },
                         new SettingsProfile { Name = "B", FadeDurationSeconds = 7,
@@ -73,16 +74,28 @@ public sealed class TimingFeaturesTests
                                      new BgmRule { Name = "Custom", UseGlobalFades = false, FadeInSeconds = 9, FadeOutSeconds = 3 }] }]
         };
         config.Normalize();
-        Assert.Equal(5, config.Rules[0].FadeInSeconds);
-        Assert.Equal(6, config.Rules[0].FadeOutSeconds);
+        Assert.Equal(0, config.Rules[0].ActivateAfterSeconds);
+        Assert.Equal(0, config.Rules[0].DeactivateAfterSeconds);
+        Assert.Equal(2, config.Rules[0].FadeInSeconds);
+        Assert.Equal(2, config.Rules[0].FadeOutSeconds);
+        Assert.False(config.Rules[0].SeparateDelays);
+        Assert.False(config.Rules[0].SeparateFades);
         config.TimePeriods.MorningStart = 400;
         config.SwitchProfile("B");
-        Assert.Equal(7, config.Rules[0].FadeInSeconds);
-        Assert.Equal(7, config.Rules[0].FadeOutSeconds);
-        Assert.Equal(9, config.Rules[1].FadeInSeconds);
-        Assert.Equal(3, config.Rules[1].FadeOutSeconds);
+        Assert.All(config.Rules, rule =>
+        {
+            Assert.Equal(0, rule.ActivateAfterSeconds);
+            Assert.Equal(0, rule.DeactivateAfterSeconds);
+            Assert.Equal(2, rule.FadeInSeconds);
+            Assert.Equal(2, rule.FadeOutSeconds);
+            Assert.False(rule.SeparateDelays);
+            Assert.False(rule.SeparateFades);
+        });
         Assert.Equal(360, config.TimePeriods.MorningStart);
+        config.Rules[0].SeparateFades = true;
         config.Rules[0].FadeOutSeconds = 3;
+        config.Rules[1].SeparateDelays = true;
+        config.Rules[1].DeactivateAfterSeconds = 8;
         config.TimePeriods.MorningStart = 500;
         config.Rules[1].TimePeriods.Add(EorzeaPeriod.Night);
         config.SwitchProfile("A");
@@ -91,26 +104,29 @@ public sealed class TimingFeaturesTests
         Assert.Equal(3, config.Rules[0].FadeOutSeconds);
         Assert.Equal(500, config.TimePeriods.MorningStart);
         Assert.Equal(EorzeaPeriod.Night, Assert.Single(config.Rules[1].TimePeriods));
-        Assert.Equal(9, config.Rules[1].FadeInSeconds);
+        Assert.Equal(8, config.Rules[1].DeactivateAfterSeconds);
+        Assert.True(config.Rules[0].SeparateFades);
+        Assert.True(config.Rules[1].SeparateDelays);
         var restored = JsonSerializer.Deserialize<Configuration>(JsonSerializer.Serialize(config))!;
         restored.Normalize();
         restored.SwitchProfile("A");
-        Assert.Equal(5, restored.Rules[0].FadeInSeconds);
-        Assert.Equal(6, restored.Rules[0].FadeOutSeconds);
+        Assert.Equal(2, restored.Rules[0].FadeInSeconds);
+        Assert.Equal(2, restored.Rules[0].FadeOutSeconds);
         restored.SwitchProfile("B");
         Assert.Equal(3, restored.Rules[0].FadeOutSeconds);
     }
 
-    // Preserves an inactive profile's directional fades through migration and saving.
+    // Resets inactive profile timings before saving without changing other rule fields.
     [Fact]
-    public void InactiveProfileMigratesDirectionalFadesBeforeSaving()
+    public void InactiveProfileResetsRuleTimingsBeforeSaving()
     {
         const string json = """
             {"Version":3,"ActiveProfileName":"A","Rules":[],
              "Profiles":[{"Name":"A","Rules":[]},
                          {"Name":"B","FadeDurationSeconds":2,"FadeInSeconds":11,"FadeOutSeconds":13,
-                          "Rules":[{"Name":"Inherited"},{"Name":"Custom","UseGlobalFades":false,
-                                    "FadeInSeconds":4,"FadeOutSeconds":5}]}]}
+                          "Rules":[{"Name":"Inherited","ActivateAfterSeconds":7,"DeactivateAfterSeconds":9},
+                                   {"Name":"Custom","UseGlobalFades":false,"SeparateDelays":true,"SeparateFades":true,
+                                    "ActivateAfterSeconds":10,"DeactivateAfterSeconds":11,"FadeInSeconds":4,"FadeOutSeconds":5}]}]}
             """;
         var config = JsonSerializer.Deserialize<Configuration>(json)!;
         config.Normalize();
@@ -118,10 +134,35 @@ public sealed class TimingFeaturesTests
         var restored = JsonSerializer.Deserialize<Configuration>(JsonSerializer.Serialize(config))!;
         restored.Normalize();
         restored.SwitchProfile("B");
-        Assert.Equal(11, restored.Rules[0].FadeInSeconds);
-        Assert.Equal(13, restored.Rules[0].FadeOutSeconds);
-        Assert.Equal(4, restored.Rules[1].FadeInSeconds);
-        Assert.Equal(5, restored.Rules[1].FadeOutSeconds);
+        Assert.Equal(["Inherited", "Custom"], restored.Rules.Select(rule => rule.Name));
+        Assert.All(restored.Rules, rule =>
+        {
+            Assert.Equal(0, rule.ActivateAfterSeconds);
+            Assert.Equal(0, rule.DeactivateAfterSeconds);
+            Assert.Equal(2, rule.FadeInSeconds);
+            Assert.Equal(2, rule.FadeOutSeconds);
+            Assert.False(rule.SeparateDelays);
+            Assert.False(rule.SeparateFades);
+        });
+    }
+
+    // Keeps combined values synchronized while retaining independent opt-in settings.
+    [Fact]
+    public void NormalizationSynchronizesOnlyCombinedTiming()
+    {
+        var combined = new BgmRule { ActivateAfterSeconds = 4, DeactivateAfterSeconds = 7,
+            FadeInSeconds = 5, FadeOutSeconds = 8 };
+        var separate = new BgmRule { ActivateAfterSeconds = 4, DeactivateAfterSeconds = 7,
+            FadeInSeconds = 5, FadeOutSeconds = 8, SeparateDelays = true, SeparateFades = true };
+        var config = new Configuration { Version = 5, Rules = [combined, separate] };
+        config.Normalize();
+        Assert.Equal(4, combined.DeactivateAfterSeconds);
+        Assert.Equal(5, combined.FadeOutSeconds);
+        Assert.Equal(7, separate.DeactivateAfterSeconds);
+        Assert.Equal(8, separate.FadeOutSeconds);
+        config.Normalize();
+        Assert.Equal(7, separate.DeactivateAfterSeconds);
+        Assert.Equal(8, separate.FadeOutSeconds);
     }
 
     // Selects incoming or outgoing fades and preserves an ongoing transition.

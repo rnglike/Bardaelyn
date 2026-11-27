@@ -27,12 +27,14 @@ public sealed class BgmRule
     public int Priority { get; set; } = 50;
     public float TargetVolume { get; set; } = 0.5f;
     public float ActivateAfterSeconds { get; set; }
-    public float DeactivateAfterSeconds { get; set; } = 3f;
+    public float DeactivateAfterSeconds { get; set; }
+    public bool SeparateDelays { get; set; }
     public bool RequireAll { get; set; } = true;
     public float LowHpThresholdPercent { get; set; } = 30f;
     public bool UseGlobalFades { get; set; } = true;
     public float FadeInSeconds { get; set; } = 2f;
     public float FadeOutSeconds { get; set; } = 2f;
+    public bool SeparateFades { get; set; }
     public List<EorzeaPeriod> TimePeriods { get; set; } = [];
     public List<RuleCondition> Conditions { get; set; } = [];
     public List<RuleCondition> ExcludedConditions { get; set; } = [];
