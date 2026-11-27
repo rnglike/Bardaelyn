@@ -2,4 +2,5 @@
   <Project Path="SamplePlugin/SamplePlugin.csproj">
     <Platform Project="x64" />
   </Project>
+  <Project Path="tests/Bardaelyn.Tests/Bardaelyn.Tests.csproj" />
 </Solution>
